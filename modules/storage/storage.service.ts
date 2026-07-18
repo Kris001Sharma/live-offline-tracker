@@ -33,11 +33,11 @@ export const StorageEngine = {
     }
   },
 
-  async execute(query: string, params?: any[]): Promise<QueryResult> {
+  async execute<T = unknown>(query: string, params?: any[]): Promise<QueryResult<T>> {
     if (!currentAdapter || !initialized) {
       throw new Error('Storage Engine: Cannot execute query, database not initialized.');
     }
-    return currentAdapter.execute(query, params);
+    return currentAdapter.execute<T>(query, params);
   },
 
   async transaction<T>(action: (txAdapter: StorageAdapter) => Promise<T>): Promise<T> {

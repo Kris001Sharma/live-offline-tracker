@@ -1,12 +1,12 @@
-export interface QueryResult {
-  rows: any[];
+export interface QueryResult<T = unknown> {
+  rows: T[];
   rowsAffected?: number;
   insertId?: string | number;
 }
 
 export interface StorageAdapter {
   initialize(): Promise<void>;
-  execute(query: string, params?: any[]): Promise<QueryResult>;
+  execute<T = unknown>(query: string, params?: any[]): Promise<QueryResult<T>>;
   transaction<T>(action: (adapter: StorageAdapter) => Promise<T>): Promise<T>;
   close(): Promise<void>;
   checkHealth(): Promise<boolean>;
