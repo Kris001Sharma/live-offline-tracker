@@ -1,12 +1,28 @@
-export interface AppConfiguration {
-  supabaseUrl: string;
-  supabaseAnonKey: string;
-  appName: string;
-  appVersion: string;
-  trackingIntervalMs: number;
-  syncIntervalMs: number;
-  gpsAccuracyThresholdMeters: number;
+export interface EnvironmentConfig {
+  supabase: {
+    url: string;
+    anonKey: string;
+  };
+  app: {
+    name: string;
+    version: string;
+  };
+}
+
+export interface RuntimeConfig {
+  tracking: {
+    intervalMs: number;
+  };
+  sync: {
+    intervalMs: number;
+  };
+  gps: {
+    accuracyThresholdMeters: number;
+  };
   featureFlags: Record<string, boolean>;
 }
 
-export type ConfigKey = keyof AppConfiguration;
+export interface ConfigurationState {
+  environment: EnvironmentConfig;
+  runtime: RuntimeConfig;
+}
