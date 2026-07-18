@@ -25,4 +25,5 @@
 
 ### Potential rollback points
 docs: freeze Configuration Engine and begin Storage Engine
+docs: freeze Storage Foundation
 
