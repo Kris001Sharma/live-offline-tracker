@@ -21,3 +21,8 @@
 - [ ] Worker Mobile App MVP
 - [ ] Admin Dashboard MVP
 - [ ] Beta Release
+
+
+### Potential rollback points
+docs: freeze Configuration Engine and begin Storage Engine
+
