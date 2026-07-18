@@ -21,15 +21,8 @@ export interface EventEntity {
   occurred_at: string;
   worker_id: string;
   shift_id: string | null;
-}
-
-export interface SyncQueueEntity {
-  id: string;
-  event_id: string;
-  status: string;
-  retry_count: number;
-  last_error: string | null;
-  last_attempt_at: string | null;
-  created_at: string;
-  updated_at: string;
+  sync_status: string;
+  sync_retry_count: number;
+  sync_last_error: string | null;
+  sync_last_attempt_at: string | null;
 }
