@@ -562,3 +562,189 @@ A feature is complete only when
 This Constitution changes only when the engineering direction of the project fundamentally changes.
 
 Routine implementation decisions must never modify this document.
+
+
+# Repository Convention 001 — Engine Module Structure
+
+## Status
+
+**Frozen**
+
+This convention applies to every engine introduced into the repository unless a justified architectural exception is approved.
+
+---
+
+## Objective
+
+Maintain a consistent, predictable, and modular project structure that promotes code reuse, simplifies navigation, and minimizes architectural drift as the application grows.
+
+Every engine should have a single, well-defined responsibility and expose a minimal public interface.
+
+---
+
+## Standard Engine Structure
+
+Every engine shall follow the structure below.
+
+```text
+modules/
+
+    engine-name/
+
+        index.ts
+        engine-name.service.ts
+        engine-name.types.ts
+        engine-name.constants.ts
+```
+
+---
+
+## File Responsibilities
+
+### index.ts
+
+- Sole public entry point.
+- Re-export only the approved public API.
+- Prevent direct imports from internal implementation files.
+
+---
+
+### engine-name.service.ts
+
+- Contains the implementation.
+- Owns the engine lifecycle.
+- Coordinates internal logic.
+- Must not expose internal helpers.
+
+---
+
+### engine-name.types.ts
+
+- Contains all interfaces.
+- Contains all type aliases.
+- Contains enums when applicable.
+- No implementation logic.
+
+---
+
+### engine-name.constants.ts
+
+- Contains default values.
+- Contains immutable constants.
+- Contains event names, limits, thresholds, and configuration values that belong exclusively to the engine.
+
+No executable logic.
+
+---
+
+## Optional Files
+
+Additional files should only be introduced when they encapsulate a distinct responsibility.
+
+Examples include:
+
+```text
+tracking.scheduler.ts
+
+tracking.permissions.ts
+
+sync.worker.ts
+
+sync.retry.ts
+
+events.serializer.ts
+```
+
+Optional files must remain cohesive and narrowly focused.
+
+---
+
+## Prohibited Practices
+
+Do not create utility files without a clearly defined responsibility.
+
+Avoid files such as:
+
+```
+helpers.ts
+utils.ts
+common.ts
+misc.ts
+temp.ts
+```
+
+Generic utility files encourage architectural drift and should be replaced with focused modules.
+
+---
+
+## Public API Rule
+
+Only `index.ts` may be imported by external modules.
+
+Example:
+
+✔
+
+import { TrackingEngine } from '@/modules/tracking';
+
+✘
+
+import { TrackingService } from '@/modules/tracking/tracking.service';
+
+---
+
+## Dependency Direction
+
+The dependency graph must always flow downward.
+
+```text
+UI
+
+↓
+
+Business Engines
+
+↓
+
+Repositories
+
+↓
+
+Storage Engine
+
+↓
+
+SQLite Adapter
+
+↓
+
+SQLite
+```
+
+No lower layer may depend on a higher layer.
+
+Circular dependencies are prohibited.
+
+---
+
+## Design Principles
+
+Every engine should satisfy the following principles:
+
+- Single Responsibility Principle
+- Plug-and-Play Architecture
+- Dependency Isolation
+- Strong Typing
+- Minimal Public Surface
+- Reusable Across Projects
+- Testable in Isolation
+
+---
+
+## Architectural Goal
+
+An engine should be removable, replaceable, or reusable in another project with minimal changes.
+
+Business logic must remain independent from infrastructure wherever practical.
+
+This convention is considered **frozen** for the lifetime of the project unless an architectural review determines that a deviation provides a measurable benefit.
