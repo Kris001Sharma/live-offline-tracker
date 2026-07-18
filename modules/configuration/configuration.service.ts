@@ -1,4 +1,4 @@
-import { ConfigurationState } from './configuration.types';
+import { ConfigurationState, FeatureFlag } from './configuration.types';
 import {
   DEFAULT_APP_NAME,
   DEFAULT_APP_VERSION,
@@ -78,10 +78,10 @@ export const Configuration = {
     return state;
   },
 
-  isFeatureEnabled(featureName: string): boolean {
+  isFeatureEnabled(featureName: FeatureFlag | string): boolean {
     if (!state) {
       throw new Error('Configuration Engine has not been initialized. Call load() first.');
     }
-    return !!state.runtime.featureFlags[featureName];
+    return !!state.runtime.featureFlags[featureName as string];
   },
 };

@@ -1,0 +1,34 @@
+export enum EventType {
+  SHIFT_STARTED = 'SHIFT_STARTED',
+  SHIFT_ENDED = 'SHIFT_ENDED',
+  GPS_RECORDED = 'GPS_RECORDED',
+  APP_STARTED = 'APP_STARTED',
+  APP_STOPPED = 'APP_STOPPED',
+  SYNC_STARTED = 'SYNC_STARTED',
+  SYNC_COMPLETED = 'SYNC_COMPLETED',
+  SYNC_FAILED = 'SYNC_FAILED'
+}
+
+export enum ShiftStatus {
+  ACTIVE = 'ACTIVE',
+  CLOSED = 'CLOSED'
+}
+
+export enum SyncStatus {
+  PENDING = 'PENDING',
+  IN_PROGRESS = 'IN_PROGRESS',
+  COMPLETED = 'COMPLETED',
+  FAILED = 'FAILED'
+}
+
+export enum ConnectivityStatus {
+  ONLINE = 'ONLINE',
+  OFFLINE = 'OFFLINE',
+  UNKNOWN = 'UNKNOWN'
+}
+
+export enum TrackingStatus {
+  ACTIVE = 'ACTIVE',
+  INACTIVE = 'INACTIVE',
+  ERROR = 'ERROR'
+}

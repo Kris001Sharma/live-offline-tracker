@@ -1,3 +1,8 @@
+export enum FeatureFlag {
+  DEBUG_MODE = 'DEBUG_MODE',
+  MOCK_GPS = 'MOCK_GPS'
+}
+
 export interface EnvironmentConfig {
   supabase: {
     url: string;
