@@ -156,3 +156,35 @@ Coordinate the location tracking lifecycle while delegating persistence and eval
 - Rejected locations generate LOCATION_REJECTED events.
 - Invalid state transitions return explicit errors.
 - No direct GPS, SQLite, or networking operations occur outside approved engine boundaries.
+
+
+
+## Slice 4D — Tracking Session
+
+### Purpose
+
+Implement the execution loop that periodically polls the Location Provider and forwards locations to the Tracking Engine.
+
+### Verification
+
+1. Initialize `TrackingSession`.
+2. Start the tracking session with `start()`.
+3. Verify that polling begins and survives location failures without resetting.
+4. Pause the session with `pause()` and verify polling stops.
+5. Resume the session with `resume()` and verify polling resumes using the latest interval.
+6. Stop the session with `stop()` and verify timers are cleared.
+7. Attempt invalid transitions (e.g., `start()` while running or `stop()` while stopped) and verify explicit errors are thrown.
+
+### Expected Outcome
+
+- `TrackingSession` orchestrates exactly one running timer at a time.
+- Successive `stop()` calls don't leak timers.
+- Calling `resume()` uses the latest configuration values.
+- Polling survives any unhandled exceptions during execution.
+- Tracking engine state remains independent from the session state.
+
+### Regression Checks
+
+- No duplicated tracking states in `TrackingSession`.
+- `TrackingEngine` behavior remains untouched.
+- Only location retrieval and forwarding are managed; no SQLite or sync imports occur.
