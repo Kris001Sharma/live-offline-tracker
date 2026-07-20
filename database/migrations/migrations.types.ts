@@ -1,4 +1,4 @@
-import { StorageAdapter } from '../storage';
+import { StorageAdapter } from '../../modules/storage';
 
 export interface Migration {
   version: number;

@@ -2,14 +2,14 @@
 
 ## Purpose
 
-This document defines the data model used by the application.
+This document defines the application's logical data model.
 
-The project maintains two databases:
+The application maintains two databases:
 
-- Local SQLite Database (offline source of truth while the worker is offline)
-- Supabase PostgreSQL Database (central synchronized source)
+- Local SQLite (offline source of truth)
+- Supabase PostgreSQL (central synchronized source)
 
-The schema should remain as similar as possible between both databases to simplify synchronization.
+Both databases should maintain equivalent schemas wherever practical to simplify synchronization.
 
 ---
 
@@ -17,7 +17,7 @@ The schema should remain as similar as possible between both databases to simpli
 
 The application is **Offline First**.
 
-Every record follows this lifecycle:
+Every business record follows the same lifecycle.
 
 ```
 Create
@@ -28,11 +28,11 @@ Store Locally
 
 ↓
 
-Queue for Sync
+Mark Pending
 
 ↓
 
-Upload
+Synchronize
 
 ↓
 
@@ -43,20 +43,39 @@ The application never writes directly to Supabase.
 
 ---
 
+# Repository Ownership
+
+Every persisted entity is accessed exclusively through its Repository.
+
+| Entity | Repository |
+|----------|----------------------|
+| Worker | WorkerRepository |
+| Shift | ShiftRepository |
+| Location | LocationRepository |
+| Event | EventRepository |
+
+Repositories own business-specific persistence.
+
+Only the Storage Engine communicates with SQLite.
+
+Features and Engines must never execute SQL directly.
+
+---
+
 # UUID Strategy
 
-Every record uses UUID v4.
+Every business entity uses UUID v4.
 
 UUIDs are generated on the device.
 
 Benefits:
 
-- Works offline
+- Offline creation
 - No ID conflicts
 - Simple synchronization
-- Easy future migration
+- Future portability
 
-Never use auto-increment IDs for business entities.
+Auto-increment IDs must never be used for business entities.
 
 ---
 
@@ -64,17 +83,16 @@ Never use auto-increment IDs for business entities.
 
 All timestamps use UTC ISO-8601.
 
-Example
+Example:
 
 ```
 2026-07-18T08:42:31Z
 ```
 
-Every table should contain
+Every persisted entity should include:
 
 ```
 created_at
-
 updated_at
 ```
 
@@ -84,13 +102,9 @@ where applicable.
 
 # Worker
 
-Represents a single authenticated employee.
+Represents an authenticated employee.
 
-This table is synchronized from Supabase.
-
-Worker data is read-only on the device.
-
-## Fields
+Worker records originate from Supabase and are read-only on the device.
 
 | Field | Type |
 |----------|-----------|
@@ -104,13 +118,9 @@ Worker data is read-only on the device.
 
 # Shift
 
-Represents one work session.
+Represents a single work session.
 
-Created locally.
-
-Uploaded after synchronization.
-
-## Fields
+Created locally and synchronized after completion.
 
 | Field | Type |
 |----------|-----------|
@@ -123,41 +133,20 @@ Uploaded after synchronization.
 | created_at | Timestamp |
 | updated_at | Timestamp |
 
----
-
-## Status
-
-Possible values
+Status values:
 
 ```
 ACTIVE
-
 COMPLETED
 ```
 
 ---
 
-## Sync Status
+# Location
 
-```
-PENDING
+Represents an accepted location sample.
 
-SYNCED
-
-FAILED
-```
-
-Only Sync Engine may modify this field.
-
----
-
-# GPS Location
-
-Stores every accepted GPS coordinate.
-
-This is expected to become the largest table.
-
-## Fields
+This is expected to become the application's largest table.
 
 | Field | Type |
 |----------|-----------|
@@ -174,31 +163,22 @@ This is expected to become the largest table.
 | sync_status | Text |
 | created_at | Timestamp |
 
----
+Required:
 
-## Notes
+- latitude
+- longitude
+- accuracy
+- recorded_at
 
-Latitude
-
-Longitude
-
-Accuracy
-
-Recorded Time
-
-are mandatory.
-
-Everything else is optional.
+Remaining fields are optional.
 
 ---
 
 # Event
 
-Records operational events.
+Stores operational events explaining application behaviour.
 
-Events explain tracking behaviour.
-
-## Fields
+Events are operational records, not analytics.
 
 | Field | Type |
 |----------|-----------|
@@ -210,98 +190,63 @@ Events explain tracking behaviour.
 | recorded_at | Timestamp |
 | sync_status | Text |
 
----
-
-## Example Events
+Typical events include:
 
 ```
 SHIFT_STARTED
-
 SHIFT_STOPPED
-
 TRACKING_STARTED
-
 TRACKING_STOPPED
-
 GPS_DISABLED
-
 GPS_ENABLED
-
 INTERNET_LOST
-
 INTERNET_RESTORED
-
 SYNC_STARTED
-
 SYNC_COMPLETED
-
 SYNC_FAILED
-
 APP_RESTARTED
-
 FOREGROUND_SERVICE_RESTARTED
 ```
 
 ---
 
-# Sync Queue
-
-Instead of creating a dedicated queue table, synchronization is determined by:
+# Relationships
 
 ```
-sync_status
-```
+Worker
 
-inside each business table.
+│
 
-Advantages
+├── Shift
 
-- Simpler implementation
-- Less duplication
-- Easier recovery
-- No queue corruption
+│      │
 
-The Sync Engine queries
+│      ├── Location
 
-```
-WHERE sync_status='PENDING'
+│      │
+
+│      └── Event
 ```
 
 ---
 
-# Local Only Data
+# Synchronization
 
-The following remains only on the device.
+Synchronization is determined by each entity's `sync_status`.
 
-```
-Configuration cache
-
-Authentication session
-
-Application settings
-
-Temporary runtime state
-```
-
-No synchronization required.
-
----
-
-# Supabase Tables
-
-Initial tables
+The Sync Engine uploads only pending records.
 
 ```
-workers
+PENDING
 
-shifts
+↓
 
-locations
-
-events
+SYNCED
 ```
 
-Nothing more for MVP.
+Failed uploads remain pending until successfully retried.
+
+No dedicated queue table is required.
 
 ---
 
@@ -317,67 +262,40 @@ locations
 events
 ```
 
-Identical naming simplifies debugging.
-
 ---
 
-# Relationships
+# Supabase Tables
 
 ```
-Worker
+workers
 
-│
+shifts
 
-├── Shift
+locations
 
-│      │
-
-│      ├── GPS Locations
-
-│      │
-
-│      └── Events
+events
 ```
 
----
-
-# Deletion Policy
-
-Workers
-
-Never deleted.
-
-Inactive only.
+Equivalent naming simplifies synchronization, debugging, and migrations.
 
 ---
 
-Shifts
+# Local Only Data
 
-Never deleted.
+The following data remains exclusively on the device:
 
-Historical record.
+- Configuration cache
+- Authentication session
+- Application settings
+- Temporary runtime state
 
----
-
-Locations
-
-Never deleted.
-
-Historical record.
-
----
-
-Events
-
-Never deleted.
-
-Operational audit.
+This data is never synchronized.
 
 ---
 
 # Indexes
 
-SQLite should create indexes on
+SQLite should maintain indexes on:
 
 ```
 worker_id
@@ -389,168 +307,56 @@ recorded_at
 sync_status
 ```
 
-No premature optimization.
-
-Only essential indexes.
-
----
-
-# Synchronization Rules
-
-Order
-
-```
-Shift
-
-↓
-
-Locations
-
-↓
-
-Events
-```
-
-Reason
-
-Locations cannot exist without Shift.
-
-Events may reference Shift.
+Only introduce additional indexes when justified by measured performance.
 
 ---
 
 # Upload Rules
 
-Never upload
-
-```
-FAILED
-```
-
-without retry.
-
-Never upload
-
-```
-SYNCED
-```
-
-again.
-
-Upload only
+Only records with
 
 ```
 PENDING
 ```
 
-records.
+may be uploaded.
+
+```
+FAILED
+```
+
+records require retry.
+
+```
+SYNCED
+```
+
+records must never be uploaded again.
 
 ---
 
-# Conflict Strategy
+# Conflict Resolution
 
-The worker application owns creation.
+The mobile application is the system of record for field data.
 
-The admin dashboard is read-only.
+If synchronization conflicts occur, the latest synchronized update wins.
 
-Therefore,
-
-conflicts are extremely unlikely.
-
-If encountered,
-
-latest update wins.
-
-Keep implementation simple.
-
----
-
-# Row Level Security (Supabase)
-
-Every worker may only access
-
-their own records.
-
-Administrators may access all records.
-
-Service Role Key is never exposed to the client.
+Complex conflict resolution is outside the MVP scope.
 
 ---
 
 # Data Retention
 
-SQLite
+Business records are retained locally until synchronization succeeds.
 
-Retain until
-
-successful synchronization.
-
-Historical data cleanup can be introduced later.
-
-Not part of MVP.
+Historical cleanup may be introduced later and is outside the MVP scope.
 
 ---
 
 # Migration Strategy
 
-Schema changes must be versioned.
+Database schema changes must always be versioned.
 
-Do not modify existing production schema manually.
+Production schemas must never be modified manually.
 
-Every change should include
-
-- migration
-- rollback (where practical)
-
----
-
-# Engineering Workflow
-
-## Architecture Office Actions
-
-- Freeze this schema before implementation.
-- Any schema changes after implementation begins must be recorded in `ARCHITECTURE_DECISIONS.md`.
-
----
-
-## Manual Actions
-
-### 1. Create Supabase Tables
-
-Do **not** let AI Studio invent the schema.
-
-We will create the schema ourselves using SQL migrations.
-
-### 2. Keep SQLite Schema Equivalent
-
-SQLite should mirror Supabase as closely as possible.
-
-### 3. Commit
-
-Commit this document before any Engine implementation begins.
-
----
-
-## Engineering Team (AI Studio)
-
-When implementation starts:
-
-- Read `03_Engines.md`
-- Read `04_Database.md`
-- Implement **Configuration Engine only**
-- Do **not** implement Storage Engine yet
-- Do **not** generate SQL independently
-- Stop after Configuration Engine is complete and summarize the implementation
-
----
-
-# Acceptance Criteria
-
-This document is complete when:
-
-- Every business entity is defined.
-- Relationships are finalized.
-- Sync lifecycle is finalized.
-- UUID strategy is finalized.
-- Timestamp standard is finalized.
-- No Engine requires additional schema decisions.
+Every schema change should be accompanied by a migration and, where practical, a rollback.

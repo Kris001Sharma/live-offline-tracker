@@ -1,4 +1,4 @@
-import { StorageAdapter } from '../../storage';
+import { StorageAdapter } from '../../../modules/storage';
 import { Migration } from '../migrations.types';
 
 export const migration001: Migration = {

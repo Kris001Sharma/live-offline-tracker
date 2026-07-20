@@ -30,5 +30,13 @@ export const EventRepository = {
       [shiftId]
     );
     return result.rows;
+  },
+
+  async getLatestEventByType(eventType: string): Promise<EventEntity | null> {
+    const result = await StorageEngine.execute<EventEntity>(
+      `SELECT id, event_type, event_data, occurred_at, worker_id, shift_id, sync_status, sync_retry_count, sync_last_error, sync_last_attempt_at FROM events WHERE event_type = ? ORDER BY occurred_at DESC LIMIT 1`,
+      [eventType]
+    );
+    return result.rows[0] ?? null;
   }
 };

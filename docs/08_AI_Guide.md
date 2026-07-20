@@ -18,15 +18,3 @@ before implementation.
 
 Bug fixes, performance improvements, refactoring, and internal implementation changes are permitted provided they preserve the published public API and architectural behaviour.
 
-
-Before writing any code:
-
-1. Read and validate against:
-
-- docs/00_Project_Constitution.md
-- docs/01_Foundation.md
-- docs/02_System_Architecture.md
-- docs/03_Engines.md
-- docs/04_Database.md
-- docs/07_Roadmap.md
-- docs/08_AI_Guide.md

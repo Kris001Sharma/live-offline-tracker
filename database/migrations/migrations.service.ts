@@ -1,4 +1,4 @@
-import { StorageEngine, StorageAdapter } from '../storage';
+import { StorageEngine, StorageAdapter } from '../../modules/storage';
 import { Migration, MigrationStatus } from './migrations.types';
 import { MIGRATIONS_TABLE_NAME } from './migrations.constants';
 
