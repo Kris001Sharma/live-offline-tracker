@@ -11,7 +11,7 @@ This document outlines the milestones, feature releases, and chronological plan 
 | Domain              | ✅ Frozen  | Core  | None                |
 | Event               | ✅ Frozen  | Core  | Repository          |
 | Location Provider   | ✅ Frozen  | Core  | None                |
-| Location Evaluation | ⏳ Planned | Core  | Location            |
+| Location Evaluation | ✅ Frozen | Core  | Location            |
 | Tracking            | ⏳ Planned | Core  | Location Evaluation |
 | Attendance          | ⏳ Planned | Core  | Tracking            |
 | Sync                | ⏳ Planned | Core  | Event               |
