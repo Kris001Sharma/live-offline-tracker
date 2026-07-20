@@ -42,5 +42,5 @@ export interface EvaluationMetadata {
 export interface LocationEvaluationResult {
   readonly accepted: boolean;
   readonly reasons: readonly EvaluationReason[];
-  readonly metadata: EvaluationMetadata;
+  readonly measurements: EvaluationMetadata;
 }

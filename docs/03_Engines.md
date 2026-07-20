@@ -2,46 +2,71 @@
 
 ## Purpose
 
-This document defines the reusable infrastructure ("Engines") that form the foundation of the application.
+This document defines the reusable infrastructure ("Engines") that form the technical foundation of the application.
 
-An Engine is a self-contained module responsible for one technical capability. Engines **must not** contain business workflows and **must not** know about UI.
+An Engine owns exactly one technical capability. Engines do not contain business workflows, UI logic, or feature-specific behavior. Features orchestrate Engines to deliver business functionality.
 
-Features orchestrate Engines.
+This separation keeps the architecture modular, reusable, and portable across future projects.
 
-This separation allows Engines to be reused across future projects.
+---
+
+# Engine Principles
+
+Every Engine must:
+
+- own exactly one technical capability.
+- expose only a minimal public API through `index.ts`.
+- remain independent of UI and business workflows.
+- depend only on approved lower-level Engines.
+- remain independently testable.
+- hide implementation details.
+- be reusable across projects.
 
 ---
 
 # Engine Dependency Diagram
 
 ```
-                 Configuration
-                      │
-        ┌─────────────┼─────────────┐
-        │             │             │
-    Storage        Event        Tracking
-        │                           │
-        └─────────────┬─────────────┘
-                      │
-                    Sync
+
+Configuration
+│
+├──────────────┐
+│              │
+Storage      Event
+│              │
+├──────────────┤
+│
+Location Provider
+│
+Location Evaluation
+│
+Tracking
+│
+Sync
+
 ```
 
-Dependency Rules:
+## Dependency Rules
 
-- Configuration has no dependency.
+- Configuration has no dependencies.
 - Storage depends only on Configuration.
-- Event depends on Configuration and Storage.
-- Tracking depends on Configuration, Storage and Event.
-- Sync depends on every previous Engine.
+- Event depends only on Storage.
+- Location Provider depends only on the native platform.
+- Location Evaluation depends only on the Location Provider.
+- Tracking orchestrates lower-level Engines but owns no infrastructure itself.
+- Sync depends on previous Engines.
 - Reverse dependencies are prohibited.
 
 ---
 
 # Engine Standards
 
-Every Engine must contain:
+Every Engine should contain only the files it requires.
+
+Typical structure:
 
 ```
+
 index.ts
 
 types.ts
@@ -51,13 +76,16 @@ constants.ts
 service.ts
 
 (optional)
+
 repository.ts
+
 adapter.ts
+
 ```
 
 Avoid unnecessary files.
 
-If an Engine contains fewer than ~300 lines of logic, prefer keeping it compact.
+If an Engine contains fewer than approximately 300 lines of logic, prefer keeping it compact rather than artificially splitting files.
 
 ---
 
@@ -66,26 +94,24 @@ If an Engine contains fewer than ~300 lines of logic, prefer keeping it compact.
 Every Engine follows the same lifecycle.
 
 ```
+
 Initialize
 
 ↓
 
-Load Configuration
+Execute
 
 ↓
 
-Perform Work
-
-↓
-
-Publish Result
+Return Result
 
 ↓
 
 Dispose
+
 ```
 
-Engines must never require manual lifecycle management from UI components.
+Lifecycle management must never be handled by UI components.
 
 ---
 
@@ -94,6 +120,7 @@ Engines must never require manual lifecycle management from UI components.
 Allowed
 
 ```
+
 Feature
 
 ↓
@@ -103,40 +130,49 @@ Engine
 ↓
 
 Engine
+
 ```
 
 Not Allowed
 
 ```
+
 Feature
 
 ↓
 
 SQLite
+
 ```
 
 ```
+
 Feature
 
 ↓
 
 Supabase
+
 ```
 
 ```
+
 Feature
 
 ↓
 
-GPS
+Native GPS
+
 ```
 
 ```
+
 React Component
 
 ↓
 
 Engine Internals
+
 ```
 
 ---
@@ -147,72 +183,36 @@ Engine Internals
 
 Provide all runtime configuration for the application.
 
-No other module should hardcode configurable values.
-
----
-
 ## Responsibilities
 
 - Environment configuration
-- GPS intervals
-- Retry policies
+- Application configuration
 - Feature flags
-- API configuration
-- Build configuration
-
----
+- Runtime settings
+- Retry policies
 
 ## Public Interface
 
 ```
+
 load()
 
 get(key)
 
-set(key)
-
 isFeatureEnabled(feature)
+
 ```
-
----
-
-## Inputs
-
-Environment
-
-Local configuration
-
----
-
-## Outputs
-
-Application configuration
-
----
 
 ## Dependencies
 
 None
 
----
-
-## Future Extensions
-
-Remote configuration
-
-Organization-specific configuration
-
----
-
 ## Non Responsibilities
 
-Authentication
-
-Storage
-
-Networking
-
-GPS
+- Storage
+- Networking
+- GPS
+- Authentication
 
 ---
 
@@ -220,31 +220,23 @@ GPS
 
 ## Purpose
 
-Provide a single interface for local persistence.
+Provide the single interface for local persistence.
 
-SQLite implementation details remain hidden from Features.
-
----
+SQLite implementation remains hidden behind this Engine.
 
 ## Responsibilities
 
-Store
-
-Retrieve
-
-Update
-
-Delete
-
-Queue
-
-Transactions
-
----
+- Store data
+- Retrieve data
+- Update data
+- Delete data
+- Transactions
+- Local persistence
 
 ## Public Interface
 
 ```
+
 initialize()
 
 save()
@@ -258,57 +250,23 @@ find()
 findMany()
 
 transaction()
+
 ```
-
----
-
-## Responsibilities in MVP
-
-Persist
-
-- GPS Locations
-
-- Shift Records
-
-- Event Records
-
-- Pending Upload Queue
-
----
 
 ## Dependencies
 
-Configuration
-
-SQLite
-
----
+- Configuration
+- SQLite Adapter
 
 ## Rules
 
-No Feature may directly execute SQL.
-
-No Engine except Storage may access SQLite.
-
----
-
-## Future Extensions
-
-Encryption
-
-Multiple databases
-
-Migration system
-
----
+Only the Storage Engine may communicate with SQLite.
 
 ## Non Responsibilities
 
-Synchronization
-
-Networking
-
-GPS
+- Synchronization
+- Networking
+- GPS
 
 ---
 
@@ -316,91 +274,34 @@ GPS
 
 ## Purpose
 
-Record significant application events.
+Record operational events describing application behaviour.
 
-Events are operational—not analytics.
-
----
+Events explain system behaviour rather than business analytics.
 
 ## Responsibilities
 
-Persist application events.
-
-Provide chronological event history.
-
----
+- Record events
+- Retrieve event history
+- Maintain chronological event log
 
 ## Example Events
 
-Shift Started
-
-Shift Stopped
-
-GPS Disabled
-
-GPS Enabled
-
-Permission Revoked
-
-Permission Granted
-
-Tracking Started
-
-Tracking Stopped
-
-Internet Connected
-
-Internet Lost
-
-Sync Started
-
-Sync Completed
-
-Sync Failed
-
-Application Restarted
-
-Foreground Service Restarted
-
----
-
-## Why Events Exist
-
-Events help explain why tracking behaved a certain way.
-
-Example
-
-```
-09:00
-
-Shift Started
-
-↓
-
-09:01
-
-GPS Disabled
-
-↓
-
-09:10
-
-GPS Enabled
-
-↓
-
-09:11
-
-Tracking Resumed
-```
-
-Instead of missing GPS records with no explanation.
-
----
+- Shift Started
+- Shift Stopped
+- GPS Disabled
+- GPS Enabled
+- Permission Granted
+- Permission Revoked
+- Tracking Started
+- Tracking Stopped
+- Sync Started
+- Sync Completed
+- Sync Failed
 
 ## Public Interface
 
 ```
+
 record()
 
 find()
@@ -408,61 +309,121 @@ find()
 findBetween()
 
 clear()
-```
 
----
+```
 
 ## Dependencies
 
-Configuration
-
-Storage
-
----
+- Storage
 
 ## Non Responsibilities
 
-Business reporting
-
-Analytics
-
-Notifications
+- Analytics
+- Reporting
+- Notifications
 
 ---
 
-# 4. Tracking Engine
+# 4. Location Provider
 
 ## Purpose
 
-Own the complete lifecycle of location tracking.
-
-This is the most critical Engine in the application.
-
-No other Engine or Feature should communicate directly with GPS.
-
----
+Provide a single abstraction over native GPS capabilities.
 
 ## Responsibilities
 
-Start tracking
-
-Stop tracking
-
-Collect locations
-
-Validate locations
-
-Persist locations
-
-Monitor provider availability
-
-Handle Android Foreground Service communication
-
----
+- Permission management
+- Current location acquisition
+- Native GPS abstraction
 
 ## Public Interface
 
 ```
+
+checkPermission()
+
+requestPermission()
+
+getCurrentLocation()
+
+```
+
+## Dependencies
+
+- Native GPS Adapter
+
+## Non Responsibilities
+
+- Tracking
+- Attendance
+- Geofence evaluation
+- Storage
+- Event creation
+
+---
+
+# 5. Location Evaluation
+
+## Purpose
+
+Provide the single authoritative implementation for evaluating captured locations.
+
+## Responsibilities
+
+- GPS accuracy evaluation
+- Distance evaluation
+- Time evaluation
+- Geofence evaluation
+
+## Public Interface
+
+```
+
+evaluate()
+
+```
+
+## Rules
+
+All location-based decisions must be delegated to this Engine.
+
+Tracking, Attendance, Patrols, Geofencing, and future location-based features must never implement their own evaluation logic.
+
+## Dependencies
+
+- Location Provider
+
+## Non Responsibilities
+
+- GPS acquisition
+- Event creation
+- Storage
+- Tracking
+- Synchronization
+
+---
+
+# 6. Tracking Engine
+
+## Purpose
+
+Own the lifecycle of location tracking by orchestrating lower-level Engines.
+
+## Responsibilities
+
+- Start tracking
+- Stop tracking
+- Coordinate location acquisition
+- Coordinate location evaluation
+- Record accepted locations
+- Manage tracking lifecycle
+- Monitor provider availability
+- Coordinate Android Foreground Service
+
+## Public Interface
+
+```
+
 start()
 
 stop()
@@ -471,83 +432,59 @@ pause()
 
 resume()
 
-currentStatus()
+status()
 
 currentLocation()
-```
 
----
+```
 
 ## Tracking Lifecycle
 
 ```
+
 Shift Started
 
 ↓
 
-Tracking Starts
+Acquire Location
 
 ↓
 
-Location Received
+Evaluate Location
 
 ↓
 
-Validate
-
-↓
-
-Persist
+Record Accepted Location
 
 ↓
 
 Repeat
+
 ```
 
----
+## Evaluation Rule
 
-## Validation Rules
+The Tracking Engine must never implement its own GPS validation logic.
 
-Reject locations when:
-
-Accuracy exceeds configured threshold.
-
-Latitude or longitude is invalid.
-
-Timestamp is older than previous accepted point.
-
-Duplicate point.
-
----
-
-## GPS Interval
-
-Interval is configuration driven.
-
-Never hardcoded.
-
----
+All spatial and temporal evaluation must be delegated exclusively to the Location Evaluation Engine.
 
 ## Storage Rule
 
-Every accepted GPS point is immediately stored locally.
+Accepted locations are immediately persisted locally.
 
-Upload is **never** attempted here.
-
-Tracking Engine is unaware of networking.
-
----
+Tracking never uploads data.
 
 ## Failure Behaviour
 
-If GPS becomes unavailable
+If GPS becomes unavailable:
 
 ```
+
 Record Event
 
 ↓
 
-Keep Tracking Active
+Remain Active
 
 ↓
 
@@ -556,71 +493,45 @@ Retry
 ↓
 
 Resume Automatically
+
 ```
-
-Do not terminate tracking.
-
----
 
 ## Dependencies
 
-Configuration
-
-Storage
-
-Event
-
-Native Adapter
-
----
-
-## Future Extensions
-
-Geofencing
-
-Motion Detection
-
-Battery Optimization
-
----
+- Configuration
+- Location Provider
+- Location Evaluation
+- Event
+- Storage
 
 ## Non Responsibilities
 
-Uploading
-
-Synchronization
-
-Authentication
+- Synchronization
+- Networking
+- Authentication
 
 ---
 
-# 5. Sync Engine
+# 7. Sync Engine
 
 ## Purpose
 
-Synchronize locally stored data with Supabase.
+Synchronize locally stored information with Supabase.
 
-Owns every network interaction.
-
----
+Own every network interaction.
 
 ## Responsibilities
 
-Detect connectivity.
-
-Upload queued data.
-
-Retry failures.
-
-Maintain upload order.
-
-Prevent duplicate uploads.
-
----
+- Detect connectivity
+- Upload pending data
+- Retry failures
+- Preserve upload order
+- Prevent duplicate uploads
 
 ## Public Interface
 
 ```
+
 start()
 
 stop()
@@ -632,13 +543,13 @@ retry()
 pending()
 
 status()
-```
 
----
+```
 
 ## Synchronization Strategy
 
 ```
+
 Connectivity Restored
 
 ↓
@@ -656,97 +567,73 @@ Mark Uploaded
 ↓
 
 Repeat
+
 ```
 
----
+## Rules
 
-## Upload Order
-
-Always chronological.
-
-Never upload newest first.
-
----
-
-## Retry Strategy
-
-Retry only failed uploads.
-
-Use exponential backoff.
-
-Do not retry indefinitely.
-
----
-
-## Queue Ownership
-
-Sync Engine owns upload state.
-
-Storage Engine owns data.
-
----
-
-## Connectivity
-
-Listen for connectivity changes.
-
-Avoid polling.
-
----
+- Upload chronologically.
+- Retry only failed uploads.
+- Use exponential backoff.
+- Listen for connectivity changes.
+- Storage owns data.
+- Sync owns upload state.
 
 ## Dependencies
 
-Configuration
-
-Storage
-
-Event
-
-Supabase
-
----
-
-## Future Extensions
-
-Background worker
-
-Compression
-
-Batch uploads
-
-Delta synchronization
-
----
+- Configuration
+- Storage
+- Event
+- Supabase Adapter
 
 ## Non Responsibilities
 
-GPS Collection
-
-Business Logic
-
-SQLite Implementation
+- GPS
+- Business workflows
+- SQLite implementation
 
 ---
 
 # Engine Boundaries
 
 | Engine | Owns |
-|----------|----------------------------|
+|----------|--------------------------------------|
 | Configuration | Runtime configuration |
-| Storage | SQLite |
-| Event | Operational events |
-| Tracking | GPS lifecycle |
+| Storage | Local persistence |
+| Event | Operational event log |
+| Location Provider | Native GPS integration |
+| Location Evaluation | Location acceptance rules |
+| Tracking | Tracking orchestration |
 | Sync | Network synchronization |
 
 If ownership is unclear, it belongs in neither until reviewed.
 
 ---
 
+# Single Source of Truth
+
+Each technical capability has exactly one authoritative Engine.
+
+| Capability | Authoritative Engine |
+|------------|----------------------|
+| Runtime Configuration | Configuration |
+| Local Persistence | Storage |
+| Native GPS | Location Provider |
+| Location Evaluation | Location Evaluation |
+| Operational Events | Event |
+| Tracking Lifecycle | Tracking |
+| Network Synchronization | Sync |
+
+Duplicate implementations of the same capability are prohibited.
+
+---
+
 # Implementation Order
 
-The Engineering Team must implement Engines in this exact order.
+Engines must be implemented in the following order:
 
 ```
+
 Configuration
 
 ↓
@@ -756,6 +643,14 @@ Storage
 ↓
 
 Event
+
+↓
+
+Location Provider
+
+↓
+
+Location Evaluation
 
 ↓
 
@@ -764,82 +659,20 @@ Tracking
 ↓
 
 Sync
-```
-
-No Engine should begin implementation before all dependencies are complete.
-
----
-
-# Coding Principles
-
-Every Engine should:
-
-- expose a minimal public API
-- hide implementation details
-- avoid circular dependencies
-- avoid static global state where possible
-- support dependency injection if required later
-- remain independently testable
-
----
-
-# Reusability Goal
-
-The following Engines should be portable to another project with minimal changes:
-
-- Configuration
-- Storage
-- Event
-- Tracking
-- Sync
-
-Only adapters should require replacement.
-
-Example:
 
 ```
-Tracking Engine
 
-↓
-
-Android Adapter
-```
-
-can later become
-
-```
-Tracking Engine
-
-↓
-
-iOS Adapter
-```
-
-without modifying the Engine itself.
-
----
-
-# AI Studio Implementation Rules
-
-For every Engine:
-
-1. Create only the agreed file structure.
-2. Define interfaces before implementation.
-3. Implement one Engine at a time.
-4. Do not create placeholder code for future Engines.
-5. Do not introduce dependencies outside this document.
-6. Keep every Engine independently testable.
-7. Stop after one Engine is complete and summarize the implementation.
+No Engine may begin before all required dependencies are complete.
 
 ---
 
 # Acceptance Criteria
 
-An Engine is considered complete when:
+An Engine is complete when:
 
 - Public API is implemented.
 - Responsibilities match this document.
-- Dependencies follow the approved graph.
+- Dependency rules are satisfied.
 - No prohibited responsibilities exist.
-- Unit testing is possible.
-- No Feature-specific logic has been introduced.
+- The Engine remains independently testable.
+- No feature-specific business logic has been introduced.

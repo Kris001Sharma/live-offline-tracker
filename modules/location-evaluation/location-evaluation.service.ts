@@ -10,14 +10,14 @@ import {
 export const LocationEvaluationEngine = {
   evaluate(request: LocationEvaluationRequest): LocationEvaluationResult {
     const reasons: EvaluationReason[] = [];
-    let metadata: EvaluationMetadata = {};
+    let measurements: EvaluationMetadata = {};
     let accepted = true;
 
     const { currentLocation, previousLocation, previousTimestamp, options } = request;
 
     // 1. Accuracy Check
     if (options.maxAccuracyMeters !== undefined) {
-      metadata = { ...metadata, accuracyMeters: currentLocation.accuracy };
+      measurements = { ...measurements, accuracyMeters: currentLocation.accuracy };
       if (currentLocation.accuracy > options.maxAccuracyMeters) {
         accepted = false;
         reasons.push(EvaluationReason.ACCURACY_REJECTED);
@@ -31,7 +31,7 @@ export const LocationEvaluationEngine = {
       
       if (!isNaN(currentMs) && !isNaN(prevMs)) {
         const timeElapsedSeconds = (currentMs - prevMs) / 1000;
-        metadata = { ...metadata, timeElapsedSeconds };
+        measurements = { ...measurements, timeElapsedSeconds };
 
         if (timeElapsedSeconds < options.minTimeSeconds) {
           accepted = false;
@@ -43,7 +43,7 @@ export const LocationEvaluationEngine = {
     // 3. Distance Check
     if (options.minDistanceMeters !== undefined && previousLocation !== undefined) {
       const distanceMeters = this.calculateDistance(currentLocation, previousLocation);
-      metadata = { ...metadata, distanceMeters };
+      measurements = { ...measurements, distanceMeters };
 
       if (distanceMeters < options.minDistanceMeters) {
         accepted = false;
@@ -58,7 +58,7 @@ export const LocationEvaluationEngine = {
         options.geofence.center
       );
       
-      metadata = { ...metadata, distanceToGeofenceCenterMeters };
+      measurements = { ...measurements, distanceToGeofenceCenterMeters };
 
       if (distanceToGeofenceCenterMeters > options.geofence.radiusMeters) {
         accepted = false;
@@ -73,7 +73,7 @@ export const LocationEvaluationEngine = {
     return {
       accepted,
       reasons,
-      metadata
+      measurements
     };
   },
 
