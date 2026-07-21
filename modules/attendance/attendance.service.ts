@@ -2,21 +2,24 @@ import { AttendanceState, AttendanceStatus, AttendanceResult, AttendanceErrorCod
 import { LocationProvider, LocationErrorCode } from '../location';
 import { LocationEvaluationEngine, LocationEvaluationRequest } from '../location-evaluation';
 import { ConfigurationEngine } from '../configuration';
+import { AttendanceRepository } from '../repositories';
 
 let currentState: AttendanceState = AttendanceState.NOT_CHECKED_IN;
 let checkedInAt: string | undefined;
 let checkedOutAt: string | undefined;
 let lastError: string | undefined;
+let activeAttendanceId: string | undefined;
 
 /**
  * Restores the engine to its previous state if an operation fails or is rejected.
  * Attendance never owns GPS validation or location logic; it acts only as an orchestrator.
- * State and timestamps are only committed after a fully successful location validation.
+ * State and timestamps are only committed after a fully successful location validation and persistence.
  */
-function rollback(state: AttendanceState, inAt: string | undefined, outAt: string | undefined): void {
+function rollback(state: AttendanceState, inAt: string | undefined, outAt: string | undefined, attendanceId: string | undefined): void {
   currentState = state;
   checkedInAt = inAt;
   checkedOutAt = outAt;
+  activeAttendanceId = attendanceId;
 }
 
 export const AttendanceEngine = {
@@ -25,6 +28,7 @@ export const AttendanceEngine = {
     checkedInAt = undefined;
     checkedOutAt = undefined;
     lastError = undefined;
+    activeAttendanceId = undefined;
   },
 
   async checkIn(): Promise<AttendanceResult> {
@@ -35,6 +39,7 @@ export const AttendanceEngine = {
     const previousState = currentState;
     const previousInAt = checkedInAt;
     const previousOutAt = checkedOutAt;
+    const previousAttendanceId = activeAttendanceId;
 
     currentState = AttendanceState.CHECKING_IN;
     lastError = undefined;
@@ -44,7 +49,7 @@ export const AttendanceEngine = {
       const geofence = config.runtime.attendance?.geofence;
 
       if (!geofence || typeof geofence.center.latitude !== 'number' || typeof geofence.center.longitude !== 'number' || geofence.radiusMeters <= 0 || isNaN(geofence.center.latitude) || isNaN(geofence.center.longitude) || isNaN(geofence.radiusMeters)) {
-        rollback(previousState, previousInAt, previousOutAt);
+        rollback(previousState, previousInAt, previousOutAt, previousAttendanceId);
         return Object.freeze({
           success: false,
           state: currentState,
@@ -57,7 +62,7 @@ export const AttendanceEngine = {
       try {
         location = await LocationProvider.getCurrentLocation();
       } catch (error: any) {
-        rollback(previousState, previousInAt, previousOutAt);
+        rollback(previousState, previousInAt, previousOutAt, previousAttendanceId);
         const code = error?.code === LocationErrorCode.PERMISSION_DENIED ? AttendanceErrorCode.PERMISSION_DENIED : AttendanceErrorCode.LOCATION_UNAVAILABLE;
         const msg = error?.message || 'Failed to acquire location';
         return Object.freeze({
@@ -79,7 +84,7 @@ export const AttendanceEngine = {
       const evaluation = LocationEvaluationEngine.evaluate(request);
 
       if (!evaluation.accepted) {
-        rollback(previousState, previousInAt, previousOutAt);
+        rollback(previousState, previousInAt, previousOutAt, previousAttendanceId);
         return Object.freeze({
           success: false,
           state: currentState,
@@ -88,10 +93,33 @@ export const AttendanceEngine = {
         });
       }
 
-      // Commit only after successful validation
+      const now = new Date().toISOString();
+      const newAttendanceId = crypto.randomUUID();
+
+      try {
+        await AttendanceRepository.append({
+          id: newAttendanceId,
+          worker_id: 'SYSTEM', // Hardcoded as per current conventions
+          check_in_at: now,
+          latitude: location.coords.latitude,
+          longitude: location.coords.longitude,
+          accuracy: location.coords.accuracy
+        });
+      } catch (error) {
+        rollback(previousState, previousInAt, previousOutAt, previousAttendanceId);
+        return Object.freeze({
+          success: false,
+          state: currentState,
+          error: error instanceof Error ? error.message : String(error),
+          errorCode: AttendanceErrorCode.PERSISTENCE_ERROR
+        });
+      }
+
+      // Commit only after successful validation and persistence
       currentState = AttendanceState.CHECKED_IN;
-      checkedInAt = new Date().toISOString();
+      checkedInAt = now;
       checkedOutAt = undefined;
+      activeAttendanceId = newAttendanceId;
 
       return Object.freeze({
         success: true,
@@ -99,7 +127,7 @@ export const AttendanceEngine = {
         timestamp: checkedInAt
       });
     } catch (error) {
-      rollback(previousState, previousInAt, previousOutAt);
+      rollback(previousState, previousInAt, previousOutAt, previousAttendanceId);
       return Object.freeze({
         success: false,
         state: currentState,
@@ -117,6 +145,7 @@ export const AttendanceEngine = {
     const previousState = currentState;
     const previousInAt = checkedInAt;
     const previousOutAt = checkedOutAt;
+    const previousAttendanceId = activeAttendanceId;
 
     currentState = AttendanceState.CHECKING_OUT;
     lastError = undefined;
@@ -126,7 +155,7 @@ export const AttendanceEngine = {
       const geofence = config.runtime.attendance?.geofence;
 
       if (!geofence || typeof geofence.center.latitude !== 'number' || typeof geofence.center.longitude !== 'number' || geofence.radiusMeters <= 0 || isNaN(geofence.center.latitude) || isNaN(geofence.center.longitude) || isNaN(geofence.radiusMeters)) {
-        rollback(previousState, previousInAt, previousOutAt);
+        rollback(previousState, previousInAt, previousOutAt, previousAttendanceId);
         return Object.freeze({
           success: false,
           state: currentState,
@@ -139,7 +168,7 @@ export const AttendanceEngine = {
       try {
         location = await LocationProvider.getCurrentLocation();
       } catch (error: any) {
-        rollback(previousState, previousInAt, previousOutAt);
+        rollback(previousState, previousInAt, previousOutAt, previousAttendanceId);
         const code = error?.code === LocationErrorCode.PERMISSION_DENIED ? AttendanceErrorCode.PERMISSION_DENIED : AttendanceErrorCode.LOCATION_UNAVAILABLE;
         const msg = error?.message || 'Failed to acquire location';
         return Object.freeze({
@@ -161,7 +190,7 @@ export const AttendanceEngine = {
       const evaluation = LocationEvaluationEngine.evaluate(request);
 
       if (!evaluation.accepted) {
-        rollback(previousState, previousInAt, previousOutAt);
+        rollback(previousState, previousInAt, previousOutAt, previousAttendanceId);
         return Object.freeze({
           success: false,
           state: currentState,
@@ -170,9 +199,41 @@ export const AttendanceEngine = {
         });
       }
 
-      // Commit only after successful validation
+      const now = new Date().toISOString();
+      
+      let currentId = activeAttendanceId;
+      if (!currentId) {
+        // Fallback in case memory state was lost but state machine was manually restored
+        const activeSession = await AttendanceRepository.findActiveSession('SYSTEM');
+        if (activeSession) {
+          currentId = activeSession.id;
+        } else {
+          rollback(previousState, previousInAt, previousOutAt, previousAttendanceId);
+          return Object.freeze({
+            success: false,
+            state: currentState,
+            error: 'No active attendance record found to checkout',
+            errorCode: AttendanceErrorCode.PERSISTENCE_ERROR
+          });
+        }
+      }
+
+      try {
+        await AttendanceRepository.updateCheckOut(currentId, now);
+      } catch (error) {
+        rollback(previousState, previousInAt, previousOutAt, previousAttendanceId);
+        return Object.freeze({
+          success: false,
+          state: currentState,
+          error: error instanceof Error ? error.message : String(error),
+          errorCode: AttendanceErrorCode.PERSISTENCE_ERROR
+        });
+      }
+
+      // Commit only after successful validation and persistence
       currentState = AttendanceState.CHECKED_OUT;
-      checkedOutAt = new Date().toISOString();
+      checkedOutAt = now;
+      activeAttendanceId = undefined;
 
       return Object.freeze({
         success: true,
@@ -180,7 +241,7 @@ export const AttendanceEngine = {
         timestamp: checkedOutAt
       });
     } catch (error) {
-      rollback(previousState, previousInAt, previousOutAt);
+      rollback(previousState, previousInAt, previousOutAt, previousAttendanceId);
       return Object.freeze({
         success: false,
         state: currentState,

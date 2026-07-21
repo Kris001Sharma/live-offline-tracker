@@ -397,3 +397,16 @@ Strengthen the Attendance Engine through configuration validation, robust rollba
 2. **Unexpected Exceptions**: Simulate an unexpected error inside the engine (e.g. mocking a failure); verify the transaction is caught, state is rolled back, previous timestamps are preserved, and it returns `UNKNOWN_ERROR`.
 3. **Lifecycle Immutability**: Validate that multiple consecutive failures (e.g., location unavailable or denied) never leave the engine in `CHECKING_IN` or `CHECKING_OUT` state.
 4. **Successful Operation**: Verify that valid `checkIn()` and `checkOut()` still behave identically as they did in Slice 6B.
+
+### Slice 6C — Attendance Repository
+1. **Persistence Integration**: Verify a successful check-in creates one database record inside the `attendance` table using the local SQLite db.
+2. **Checkout Update**: Verify a successful check-out updates the same existing record by setting `check_out_at` rather than creating a duplicate row.
+3. **Rollback Integrity**: Verify that if persistence to SQLite fails, the `AttendanceEngine` performs a complete state rollback and does not leave a partial session.
+4. **Duplicate Prevention**: Verify duplicate active sessions for the same worker cannot be created.
+5. **Pending Records**: Ensure un-synced attendance records correctly report as `PENDING`.
+
+### Slice 6C-A — Attendance Persistence Hardening
+1. **Active Recovery**: Verify that after a simulated restart, only a genuinely open session (check_out_at is NULL) is restored.
+2. **Completed Isolation**: Verify completed attendance records (check_out_at exists) are never mistakenly restored as active.
+3. **Duplicate Prevention**: Verify the repository actively rejects attempts to append a new session when an active one already exists.
+4. **Rollback Integrity**: Verify that if the repository rejects an append (e.g. duplicate session), the Engine fully rolls back its state and timestamps.
