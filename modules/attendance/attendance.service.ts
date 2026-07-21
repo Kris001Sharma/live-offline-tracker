@@ -1,4 +1,7 @@
-import { AttendanceState, AttendanceStatus, AttendanceResult } from './attendance.types';
+import { AttendanceState, AttendanceStatus, AttendanceResult, AttendanceErrorCode } from './attendance.types';
+import { LocationProvider, LocationErrorCode } from '../location';
+import { LocationEvaluationEngine, LocationEvaluationRequest } from '../location-evaluation';
+import { ConfigurationEngine } from '../configuration';
 
 let currentState: AttendanceState = AttendanceState.NOT_CHECKED_IN;
 let checkedInAt: string | undefined;
@@ -18,14 +21,51 @@ export const AttendanceEngine = {
       throw new Error(`Attendance Engine: Cannot check in from state ${currentState}`);
     }
 
+    const previousState = currentState;
     currentState = AttendanceState.CHECKING_IN;
     lastError = undefined;
 
     try {
-      // In this slice, we simply transition the state and record the timestamp.
+      const config = ConfigurationEngine.config;
+      
+      let location;
+      try {
+        location = await LocationProvider.getCurrentLocation();
+      } catch (error: any) {
+        currentState = previousState;
+        const code = error?.code === LocationErrorCode.PERMISSION_DENIED ? AttendanceErrorCode.PERMISSION_DENIED : AttendanceErrorCode.LOCATION_UNAVAILABLE;
+        const msg = error?.message || 'Failed to acquire location';
+        return Object.freeze({
+          success: false,
+          state: currentState,
+          error: msg,
+          errorCode: code
+        });
+      }
+
+      const request: LocationEvaluationRequest = {
+        currentLocation: location,
+        options: {
+          maxAccuracyMeters: config.runtime.gps.accuracyThresholdMeters,
+          geofence: config.runtime.attendance?.geofence
+        }
+      };
+
+      const evaluation = LocationEvaluationEngine.evaluate(request);
+
+      if (!evaluation.accepted) {
+        currentState = previousState;
+        return Object.freeze({
+          success: false,
+          state: currentState,
+          error: `Location validation failed: ${evaluation.reasons.join(', ')}`,
+          errorCode: AttendanceErrorCode.LOCATION_EVALUATION_FAILED
+        });
+      }
+
       currentState = AttendanceState.CHECKED_IN;
       checkedInAt = new Date().toISOString();
-      checkedOutAt = undefined; // Reset checkout if checking in again
+      checkedOutAt = undefined;
 
       return Object.freeze({
         success: true,
@@ -39,7 +79,8 @@ export const AttendanceEngine = {
       return Object.freeze({
         success: false,
         state: currentState,
-        error: lastError
+        error: lastError,
+        errorCode: AttendanceErrorCode.UNKNOWN_ERROR
       });
     }
   },
@@ -49,10 +90,47 @@ export const AttendanceEngine = {
       throw new Error(`Attendance Engine: Cannot check out from state ${currentState}`);
     }
 
+    const previousState = currentState;
     currentState = AttendanceState.CHECKING_OUT;
 
     try {
-      // In this slice, we simply transition the state and record the timestamp.
+      const config = ConfigurationEngine.config;
+      
+      let location;
+      try {
+        location = await LocationProvider.getCurrentLocation();
+      } catch (error: any) {
+        currentState = previousState;
+        const code = error?.code === LocationErrorCode.PERMISSION_DENIED ? AttendanceErrorCode.PERMISSION_DENIED : AttendanceErrorCode.LOCATION_UNAVAILABLE;
+        const msg = error?.message || 'Failed to acquire location';
+        return Object.freeze({
+          success: false,
+          state: currentState,
+          error: msg,
+          errorCode: code
+        });
+      }
+
+      const request: LocationEvaluationRequest = {
+        currentLocation: location,
+        options: {
+          maxAccuracyMeters: config.runtime.gps.accuracyThresholdMeters,
+          geofence: config.runtime.attendance?.geofence
+        }
+      };
+
+      const evaluation = LocationEvaluationEngine.evaluate(request);
+
+      if (!evaluation.accepted) {
+        currentState = previousState;
+        return Object.freeze({
+          success: false,
+          state: currentState,
+          error: `Location validation failed: ${evaluation.reasons.join(', ')}`,
+          errorCode: AttendanceErrorCode.LOCATION_EVALUATION_FAILED
+        });
+      }
+
       currentState = AttendanceState.CHECKED_OUT;
       checkedOutAt = new Date().toISOString();
 
@@ -68,7 +146,8 @@ export const AttendanceEngine = {
       return Object.freeze({
         success: false,
         state: currentState,
-        error: lastError
+        error: lastError,
+        errorCode: AttendanceErrorCode.UNKNOWN_ERROR
       });
     }
   },

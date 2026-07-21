@@ -374,3 +374,15 @@ Implement and harden the core Attendance Engine as the single orchestration poin
 2. **Valid Transitions**: Verify `checkIn()` succeeds from `NOT_CHECKED_IN` and `CHECKED_OUT`, and `checkOut()` succeeds from `CHECKED_IN`.
 3. **Invalid Transitions**: Verify invalid transitions (e.g., `checkOut()` from `NOT_CHECKED_IN`, `checkIn()` from `CHECKED_IN`) explicitly throw lifecycle errors.
 4. **Immutability**: Verify `AttendanceEngine.status()` returns a frozen object and timestamps remain unmodified after transition completes.
+
+## Slice 6B — Attendance Location Validation
+
+### Purpose
+Extend the Attendance Engine so that attendance decisions become location-aware, delegating logic to `LocationProvider` and `LocationEvaluationEngine`.
+
+### Verification
+1. **Valid Location Check-in**: Set device location inside geofence (or meet accuracy rules), call `AttendanceEngine.checkIn()`, and verify it succeeds and state updates to `CHECKED_IN`.
+2. **Invalid Location Check-in**: Set device location outside geofence (or low accuracy), call `checkIn()`, and verify it fails with `LOCATION_EVALUATION_FAILED`, leaving state unchanged.
+3. **Valid Location Check-out**: While checked in, set location inside geofence, call `checkOut()`, verify it succeeds and state updates to `CHECKED_OUT`.
+4. **Invalid Location Check-out**: Set location outside geofence, call `checkOut()`, verify it fails with `LOCATION_EVALUATION_FAILED`, leaving state unchanged (`CHECKED_IN`).
+5. **No Location Access**: Deny GPS permission and verify `checkIn()` or `checkOut()` fails with `PERMISSION_DENIED` and states are preserved.

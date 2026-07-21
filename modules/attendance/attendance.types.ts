@@ -7,6 +7,14 @@ export enum AttendanceState {
   ERROR = 'ERROR'
 }
 
+export enum AttendanceErrorCode {
+  LIFECYCLE_ERROR = 'LIFECYCLE_ERROR',
+  LOCATION_UNAVAILABLE = 'LOCATION_UNAVAILABLE',
+  PERMISSION_DENIED = 'PERMISSION_DENIED',
+  LOCATION_EVALUATION_FAILED = 'LOCATION_EVALUATION_FAILED',
+  UNKNOWN_ERROR = 'UNKNOWN_ERROR'
+}
+
 export interface AttendanceStatus {
   readonly state: AttendanceState;
   readonly checkedInAt?: string;
@@ -19,4 +27,5 @@ export interface AttendanceResult {
   readonly state: AttendanceState;
   readonly timestamp?: string;
   readonly error?: string;
+  readonly errorCode?: AttendanceErrorCode;
 }

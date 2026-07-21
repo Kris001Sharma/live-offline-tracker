@@ -24,6 +24,15 @@ export interface RuntimeConfig {
   gps: {
     accuracyThresholdMeters: number;
   };
+  attendance: {
+    geofence?: {
+      center: {
+        latitude: number;
+        longitude: number;
+      };
+      radiusMeters: number;
+    };
+  };
   featureFlags: Record<string, boolean>;
 }
 

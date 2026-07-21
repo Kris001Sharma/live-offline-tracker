@@ -29,7 +29,6 @@ export const Configuration = {
   load(): void {
     // In Vite environments, env variables are exposed on import.meta.env
     const env = (import.meta as any).env || {};
-
     const supabaseUrl = env.VITE_SUPABASE_URL;
     const supabaseAnonKey = env.VITE_SUPABASE_ANON_KEY;
     
@@ -44,6 +43,10 @@ export const Configuration = {
     const trackingInterval = parseInt(env.VITE_TRACKING_INTERVAL_MS, 10);
     const syncInterval = parseInt(env.VITE_SYNC_INTERVAL_MS, 10);
     const gpsAccuracy = parseInt(env.VITE_GPS_ACCURACY_THRESHOLD_METERS, 10);
+
+    const lat = parseFloat(env.VITE_ATTENDANCE_GEOFENCE_LAT);
+    const lng = parseFloat(env.VITE_ATTENDANCE_GEOFENCE_LNG);
+    const radius = parseFloat(env.VITE_ATTENDANCE_GEOFENCE_RADIUS);
 
     state = {
       environment: {
@@ -65,6 +68,12 @@ export const Configuration = {
         },
         gps: {
           accuracyThresholdMeters: isNaN(gpsAccuracy) ? DEFAULT_GPS_ACCURACY_THRESHOLD_METERS : gpsAccuracy,
+        },
+        attendance: {
+          geofence: !isNaN(lat) && !isNaN(lng) && !isNaN(radius) ? {
+            center: { latitude: lat, longitude: lng },
+            radiusMeters: radius
+          } : undefined
         },
         featureFlags: parseFeatureFlags(env.VITE_FEATURE_FLAGS),
       },
