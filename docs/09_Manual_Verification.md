@@ -364,3 +364,13 @@ Expected outcome:
 - Accepted locations are stored only through LocationRepository.
 - Operational events are stored only through EventEngine.
 - No duplicate timers or overlapping processing occur.
+## Slice 6A — Attendance Engine Foundation (Refinement)
+
+### Purpose
+Implement and harden the core Attendance Engine as the single orchestration point for attendance operations, establishing the Attendance domain with immutable states and explicit transitions.
+
+### Verification
+1. **Idempotency**: Call `AttendanceEngine.initialize()` multiple times; verify it consistently resets the engine to `NOT_CHECKED_IN` without side effects.
+2. **Valid Transitions**: Verify `checkIn()` succeeds from `NOT_CHECKED_IN` and `CHECKED_OUT`, and `checkOut()` succeeds from `CHECKED_IN`.
+3. **Invalid Transitions**: Verify invalid transitions (e.g., `checkOut()` from `NOT_CHECKED_IN`, `checkIn()` from `CHECKED_IN`) explicitly throw lifecycle errors.
+4. **Immutability**: Verify `AttendanceEngine.status()` returns a frozen object and timestamps remain unmodified after transition completes.
