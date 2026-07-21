@@ -246,3 +246,43 @@ Implement the dedicated Location Repository as the authoritative persistence lay
 
 - No direct business logic, location evaluation, or tracking orchestration exists within the repository.
 - Location processing in `TrackingEngine` works correctly.
+
+## Slice 5B — GPS Capture Pipeline
+
+### Purpose
+
+Implement the production GPS capture pipeline responsible for reliably processing every GPS sample produced by the scheduler. Ensure the pipeline correctly integrates `TrackingSession`, `LocationProvider`, `TrackingEngine`, `LocationEvaluationEngine`, `LocationRepository`, and `EventEngine`.
+
+### Verification
+
+1. Start a tracking session.
+2. Verify `TrackingSession` repeatedly invokes `TrackingEngine.processLocation()`.
+3. Verify accepted locations are recorded in `LocationRepository` and emit a `GPS_RECORDED` event.
+4. Verify rejected locations are not recorded in `LocationRepository` and emit a `LOCATION_REJECTED` event.
+5. Induce a retrieval error from `LocationProvider` and confirm a `TRACKING_ERROR` is logged, and the scheduler survives.
+6. Induce a persistence error in `LocationRepository` and confirm a `TRACKING_ERROR` is logged, and the scheduler survives.
+7. Induce an event generation failure and confirm the scheduler survives.
+8. Verify no duplicate persistence paths exist.
+9. Verify no concurrent `processLocation()` executions occur (trigger rapid polling manually if needed).
+
+### Expected Outcome
+
+- Deterministic outcome for every polling cycle (either accepted or rejected).
+- Resilient pipeline that handles failures without crashing or terminating the scheduler.
+- Absolute atomic execution of GPS processing.
+
+### Regression Checks
+
+- Architecture compliance remains unchanged.
+- Single responsibility maintained across all engines.
+
+## Revision — Tracking Session Scheduling
+
+### Purpose
+Refine `TrackingSession` to use a self-scheduling asynchronous loop, replacing `setInterval`.
+
+### Verification
+1. Start a tracking session.
+2. Verify that the scheduler waits for each polling cycle to complete before scheduling the next cycle.
+3. Verify that no overlapping or skipped timer callbacks occur.
+4. Verify that the polling interval begins after successful completion of the previous cycle.

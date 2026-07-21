@@ -2,43 +2,97 @@ import { SessionState, SessionStatus } from './tracking-session.types';
 import { ConfigurationEngine } from '../configuration';
 import { LocationProvider } from '../location';
 import { TrackingEngine } from '../tracking';
+import { EventEngine } from '../event';
+import { EventType } from '../domain';
 
 /**
  * TrackingSession decides **when** a location is collected.
  * TrackingEngine decides **what happens** to that location.
  */
-
 let currentState: SessionState = SessionState.STOPPED;
 let lastError: string | undefined;
-let timerId: ReturnType<typeof setInterval> | undefined;
+let timerId: ReturnType<typeof setTimeout> | undefined;
+let isExecutingCycle = false;
 
 async function executeCycle(): Promise<void> {
   if (currentState !== SessionState.RUNNING) {
     return;
   }
+  if (isExecutingCycle) {
+    return;
+  }
+  isExecutingCycle = true;
+  
   try {
-    const location = await LocationProvider.getCurrentLocation();
-    await TrackingEngine.processLocation(location);
+    let location;
+    try {
+      location = await LocationProvider.getCurrentLocation();
+    } catch (error) {
+      try {
+        await EventEngine.createEvent({
+          type: EventType.TRACKING_ERROR,
+          workerId: 'SYSTEM',
+          payload: { error: error instanceof Error ? error.message : String(error), source: 'LocationProvider' }
+        });
+      } catch (e) {
+        // Ignore failures generating error events
+      }
+      return;
+    }
+
+    const result = await TrackingEngine.processLocation(location);
+
+    if (!result.success && result.failure) {
+      if (result.failure.type === 'PERSISTENCE_ERROR') {
+        try {
+          await EventEngine.createEvent({
+            type: EventType.TRACKING_ERROR,
+            workerId: 'SYSTEM',
+            payload: { error: result.failure.message, source: 'LocationRepository' }
+          });
+        } catch (e) {
+          // Ignore failures generating error events
+        }
+      }
+      // For EVENT_ERROR, we just continue without logging another error event to avoid loop
+    }
   } catch (error) {
-    // Failures retrieving a location must not terminate the scheduler,
-    // not reset the session, and allow the next interval to continue.
+    try {
+      await EventEngine.createEvent({
+        type: EventType.TRACKING_ERROR,
+        workerId: 'SYSTEM',
+        payload: { error: error instanceof Error ? error.message : String(error), source: 'TrackingSession' }
+      });
+    } catch (e) {
+      // Ignore errors when failing to log errors
+    }
+  } finally {
+    isExecutingCycle = false;
   }
 }
 
-function startTimer(intervalMs: number): void {
-  if (timerId !== undefined) {
-    clearInterval(timerId);
+function scheduleNextCycle(): void {
+  if (currentState !== SessionState.RUNNING) {
+    return;
   }
-  // The scheduler intentionally uses standard setInterval().
-  // Do not attempt drift correction. Long-running compensation strategies are outside MVP.
-  timerId = setInterval(() => {
-    executeCycle(); // Fire and forget
+  
+  if (timerId !== undefined) {
+    clearTimeout(timerId);
+    timerId = undefined;
+  }
+  
+  const config = ConfigurationEngine.config;
+  const intervalMs = config.runtime.tracking.intervalMs;
+  
+  timerId = setTimeout(async () => {
+    await executeCycle();
+    scheduleNextCycle();
   }, intervalMs);
 }
 
 function stopTimer(): void {
   if (timerId !== undefined) {
-    clearInterval(timerId);
+    clearTimeout(timerId);
     timerId = undefined;
   }
 }
@@ -48,6 +102,7 @@ export const TrackingSession = {
     stopTimer();
     currentState = SessionState.STOPPED;
     lastError = undefined;
+    isExecutingCycle = false;
   },
 
   async start(): Promise<void> {
@@ -58,12 +113,8 @@ export const TrackingSession = {
     currentState = SessionState.STARTING;
 
     try {
-      const config = ConfigurationEngine.config;
-      const intervalMs = config.runtime.tracking.intervalMs;
-
-      startTimer(intervalMs);
-
       currentState = SessionState.RUNNING;
+      scheduleNextCycle();
       lastError = undefined;
     } catch (error) {
       currentState = SessionState.ERROR;
@@ -100,11 +151,7 @@ export const TrackingSession = {
     currentState = SessionState.RUNNING;
     
     try {
-      // Always obtain the latest tracking interval from ConfigurationEngine to allow runtime updates.
-      const config = ConfigurationEngine.config;
-      const intervalMs = config.runtime.tracking.intervalMs;
-
-      startTimer(intervalMs);
+      scheduleNextCycle();
     } catch (error) {
       currentState = SessionState.ERROR;
       lastError = error instanceof Error ? error.message : String(error);
