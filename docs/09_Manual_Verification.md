@@ -322,3 +322,45 @@ Implement a read-only tracking health diagnostic layer to improve observability 
 1. Verify startup state returns `UNKNOWN` before the first polling tick completes, preventing premature `HEALTHY` or `STOPPED` reports.
 2. Induce a clock rollback (device time moves backwards) and verify the diagnostic layer avoids negative durations and remains operational.
 3. Simulate a delayed scheduler (tick doesn't occur for 2x interval) and verify health state degrades gracefully.
+
+## Phase 5 — End-to-End Validation
+
+### Purpose
+Validate the complete tracking pipeline from scheduler through persistence under realistic operating conditions.
+
+### Verification
+1. **Normal Tracking**: Start session, ensure GPS is polled, locations are evaluated and persisted, and `TrackingHealth` reports `HEALTHY`.
+2. **Scheduler**: Pause, resume, and stop the session to verify no duplicate timers or overlapping executions occur.
+3. **GPS Failure Recovery**: Deny location permissions mid-session; verify `TRACKING_ERROR` is logged and tracking continues. Grant permissions and verify normal polling resumes.
+4. **Persistence Failure Recovery**: Simulate a repository error and confirm tracking loop survives and correctly reports `PERSISTENCE_ERROR`.
+5. **Event Failure Recovery**: Simulate an error when generating an event and verify tracking loop continues cleanly.
+6. **Connectivity**: Run tracking continuously while toggling Airplane Mode; verify pipeline operates strictly offline and continues storing location samples.
+7. **Application Lifecycle**: Run app in foreground, background, screen lock, and screen unlock scenarios to ensure `BackgroundExecution` properly handles state transitions without duplicating timers.
+8. **Long Running Stability**: Leave the session active for multiple hours (6+ recommended); verify `TrackingHealth` remains `HEALTHY` with no scheduler stalls.
+
+
+# Phase 5 — Final Validation
+
+The complete offline tracking pipeline has been verified.
+
+Validated scenarios:
+
+- Tracking lifecycle
+- Background execution
+- Scheduler recovery
+- GPS unavailable
+- Persistence failure
+- Event logging failure
+- Airplane mode
+- Screen locked
+- Background execution
+- Long-running scheduler stability
+- Tracking Health diagnostics
+
+Expected outcome:
+
+- Tracking continues whenever possible.
+- Failures never terminate the scheduler.
+- Accepted locations are stored only through LocationRepository.
+- Operational events are stored only through EventEngine.
+- No duplicate timers or overlapping processing occur.
