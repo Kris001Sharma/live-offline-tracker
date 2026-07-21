@@ -15,9 +15,11 @@ let timerId: ReturnType<typeof setTimeout> | undefined;
 let isExecutingCycle = false;
 
 async function executeCycle(): Promise<void> {
+  // Defensive guard: Execution is only allowed when RUNNING.
   if (currentState !== SessionState.RUNNING) {
     return;
   }
+  // Defensive guard: Prevent overlapping cycles.
   if (isExecutingCycle) {
     return;
   }
@@ -28,6 +30,8 @@ async function executeCycle(): Promise<void> {
     try {
       location = await LocationProvider.getCurrentLocation();
     } catch (error) {
+      // The scheduler intentionally survives GPS read failures.
+      // Transient hardware or OS location failures must not terminate long-running offline tracking.
       try {
         await EventEngine.createEvent({
           type: EventType.TRACKING_ERROR,
@@ -35,7 +39,7 @@ async function executeCycle(): Promise<void> {
           payload: { error: error instanceof Error ? error.message : String(error), source: 'LocationProvider' }
         });
       } catch (e) {
-        // Ignore failures generating error events
+        // Event failures must never stop tracking or cause recursive error loops.
       }
       return;
     }
@@ -44,6 +48,8 @@ async function executeCycle(): Promise<void> {
 
     if (!result.success && result.failure) {
       if (result.failure.type === 'PERSISTENCE_ERROR') {
+        // The scheduler intentionally survives persistence failures.
+        // Intermittent storage availability must not permanently halt tracking.
         try {
           await EventEngine.createEvent({
             type: EventType.TRACKING_ERROR,
@@ -51,12 +57,14 @@ async function executeCycle(): Promise<void> {
             payload: { error: result.failure.message, source: 'LocationRepository' }
           });
         } catch (e) {
-          // Ignore failures generating error events
+          // Event failures must never stop tracking.
         }
       }
-      // For EVENT_ERROR, we just continue without logging another error event to avoid loop
+      // For EVENT_ERROR, we just continue without logging another error event to avoid loop.
+      // Event failures must never stop tracking.
     }
   } catch (error) {
+    // Global catch-all to ensure executeCycle never throws and breaks the scheduling loop.
     try {
       await EventEngine.createEvent({
         type: EventType.TRACKING_ERROR,
@@ -64,7 +72,7 @@ async function executeCycle(): Promise<void> {
         payload: { error: error instanceof Error ? error.message : String(error), source: 'TrackingSession' }
       });
     } catch (e) {
-      // Ignore errors when failing to log errors
+      // Ignore errors when failing to log errors.
     }
   } finally {
     isExecutingCycle = false;
@@ -72,10 +80,12 @@ async function executeCycle(): Promise<void> {
 }
 
 function scheduleNextCycle(): void {
+  // Defensive guard: Do not schedule if not RUNNING.
   if (currentState !== SessionState.RUNNING) {
     return;
   }
   
+  // Defensive guard: Ensure no duplicate schedulers.
   if (timerId !== undefined) {
     clearTimeout(timerId);
     timerId = undefined;
@@ -85,8 +95,15 @@ function scheduleNextCycle(): void {
   const intervalMs = config.runtime.tracking.intervalMs;
   
   timerId = setTimeout(async () => {
-    await executeCycle();
-    scheduleNextCycle();
+    // Wrap executeCycle in a try-catch to absolutely guarantee scheduleNextCycle() is called,
+    // ensuring the scheduler always survives even if an unforeseen exception escapes.
+    try {
+      await executeCycle();
+    } catch (e) {
+      // Ignored: executeCycle handles its own errors, this is a fallback to guarantee loop survival.
+    } finally {
+      scheduleNextCycle();
+    }
   }, intervalMs);
 }
 

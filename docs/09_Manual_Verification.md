@@ -286,3 +286,21 @@ Refine `TrackingSession` to use a self-scheduling asynchronous loop, replacing `
 2. Verify that the scheduler waits for each polling cycle to complete before scheduling the next cycle.
 3. Verify that no overlapping or skipped timer callbacks occur.
 4. Verify that the polling interval begins after successful completion of the previous cycle.
+
+## Slice 5C — Tracking Resilience & Recovery
+
+### Purpose
+Complete the Tracking Engine by implementing automatic recovery behaviour, ensuring the system survives temporary failures without requiring manual restart.
+
+### Verification
+1. Induce a GPS read failure and verify the system records `TRACKING_ERROR`, continues scheduling, and never stops tracking.
+2. Induce a persistence failure and verify `TrackingEngine` returns `PERSISTENCE_ERROR`, `TrackingSession` records `TRACKING_ERROR`, and scheduling continues.
+3. Induce an event generation failure and verify that tracking continues without recursive error loops.
+4. Verify the scheduler never silently stops, and always schedules the next execution.
+5. Verify that a paused scheduler executes nothing.
+6. Verify that a stopped scheduler executes nothing.
+
+### Regression Checks
+- Public APIs remain unchanged.
+- No new dependencies.
+- No architectural boundary changes.
