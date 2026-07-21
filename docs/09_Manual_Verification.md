@@ -219,3 +219,30 @@ Implement the Background Execution Adapter responsible for integrating the appli
 - No direct tracking orchestration, persistence, or evaluation occurs in `BackgroundExecution`.
 - Location Provider and Event Engine remain untouched and un-imported.
 - Previously implemented tracking features (Tracking Engine, Tracking Session) behave correctly.
+
+## Slice 5A — Location Repository
+
+### Purpose
+
+Implement the dedicated Location Repository as the authoritative persistence layer for accepted GPS locations.
+
+### Verification
+
+1. Initialize `LocationRepository` and verify `append()` stores a valid location using SQLite.
+2. Verify `findLatest()` correctly retrieves the most recent location for a specific worker.
+3. Verify `findBetween()` returns locations within a specific time range.
+4. Verify `findPending()` correctly retrieves locations that have `sync_status = 'PENDING'`.
+5. Run tracking session and confirm that accepted locations are correctly appended to the repository.
+6. Trigger tracking session and confirm that `findLatest()` returns the newly appended location to evaluate the next GPS coordinate.
+7. Attempt to call `markSynced()` and confirm that the `sync_status` updates to `COMPLETED`.
+
+### Expected Outcome
+
+- GPS locations are stored in the `locations` table.
+- Queries reliably retrieve the expected records using `recorded_at` and `sync_status`.
+- `TrackingEngine` uses `LocationRepository` rather than `EventRepository` to retrieve previous locations for GPS validation.
+
+### Regression Checks
+
+- No direct business logic, location evaluation, or tracking orchestration exists within the repository.
+- Location processing in `TrackingEngine` works correctly.

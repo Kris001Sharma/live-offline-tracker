@@ -3,7 +3,7 @@ import { EventEngine } from '../event';
 import { EventType, TrackingSample } from '../domain';
 import { LocationEvaluationEngine, LocationEvaluationRequest } from '../location-evaluation';
 import { Location } from '../location';
-import { EventRepository } from '../repositories';
+import { LocationRepository } from '../repositories';
 import { ConfigurationEngine } from '../configuration';
 
 let currentState: TrackingState = TrackingState.STOPPED;
@@ -128,27 +128,21 @@ export const TrackingEngine = {
       throw new Error(`Tracking Engine: Cannot process location in state ${currentState}`);
     }
 
-    // TODO (Roadmap): Replace EventRepository lookup with LocationRepository once the dedicated repository is introduced. EventRepository should remain responsible only for operational history.
-    const lastEvent = await EventRepository.getLatestEventByType(EventType.GPS_RECORDED);
+    const lastLocation = await LocationRepository.findLatest('SYSTEM');
     let previousLocation: Location | undefined;
     let previousTimestamp: string | undefined;
 
-    if (lastEvent) {
-      try {
-        const sample = JSON.parse(lastEvent.event_data) as TrackingSample;
-        previousLocation = {
-          latitude: sample.coordinates.latitude,
-          longitude: sample.coordinates.longitude,
-          accuracy: sample.coordinates.accuracy,
-          timestamp: sample.timestamp,
-          altitude: sample.coordinates.altitude,
-          heading: sample.coordinates.heading,
-          speed: sample.coordinates.speed
-        };
-        previousTimestamp = sample.timestamp;
-      } catch (err) {
-        // Invalid previous location format, ignore
-      }
+    if (lastLocation) {
+      previousLocation = {
+        latitude: lastLocation.latitude,
+        longitude: lastLocation.longitude,
+        accuracy: lastLocation.accuracy,
+        timestamp: lastLocation.recorded_at,
+        altitude: lastLocation.altitude,
+        heading: lastLocation.heading,
+        speed: lastLocation.speed
+      };
+      previousTimestamp = lastLocation.recorded_at;
     }
 
     const config = ConfigurationEngine.config;
@@ -177,6 +171,20 @@ export const TrackingEngine = {
         timestamp: location.timestamp,
         isMocked: false
       };
+      
+      const locationId = crypto.randomUUID();
+      await LocationRepository.append({
+        id: locationId,
+        shift_id: 'SYSTEM',
+        worker_id: 'SYSTEM',
+        latitude: location.latitude,
+        longitude: location.longitude,
+        accuracy: location.accuracy,
+        altitude: location.altitude ?? null,
+        heading: location.heading ?? null,
+        speed: location.speed ?? null,
+        recorded_at: location.timestamp
+      });
       
       await EventEngine.createEvent({
         type: EventType.GPS_RECORDED,

@@ -172,6 +172,11 @@ Required:
 
 Remaining fields are optional.
 
+Accepted GPS locations are persisted in the locations table. 
+Operational tracking history (such as tracking lifecycle events and location rejections) is persisted separately in the events table. 
+These stores serve different purposes and intentionally coexist.
+
+
 ---
 
 # Event
