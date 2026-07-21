@@ -188,3 +188,34 @@ Implement the execution loop that periodically polls the Location Provider and f
 - No duplicated tracking states in `TrackingSession`.
 - `TrackingEngine` behavior remains untouched.
 - Only location retrieval and forwarding are managed; no SQLite or sync imports occur.
+
+## Slice 4E — Background Execution Adapter
+
+### Purpose
+
+Implement the Background Execution Adapter responsible for integrating the application with the native application lifecycle. Enables continuous tracking while the application is running in the foreground or an approved background execution context.
+
+### Verification
+
+1. Initialize `BackgroundExecution` and verify duplicate initialize does not register duplicate listeners.
+2. Start the background execution with `start()`.
+3. Verify that the state transitions to `ACTIVE` and the `TrackingSession` starts.
+4. Trigger foreground transition and background transition multiple times.
+5. Verify duplicate lifecycle callbacks do not restart polling.
+6. Verify execution state accurately reflects application lifecycle.
+7. Stop the background execution with `stop()`.
+8. Verify `stop()` removes listeners.
+9. Attempt invalid transitions (e.g., `start()` while active or `stop()` while stopped) and verify explicit lifecycle errors.
+
+### Expected Outcome
+
+- `BackgroundExecution` manages the transition between foreground and background states based on Capacitor events.
+- `TrackingSession` is started and stopped correctly as part of the execution lifecycle.
+- Proper handling of lifecycle failures without state corruption.
+- Safely ignores unexpected lifecycle events.
+
+### Regression Checks
+
+- No direct tracking orchestration, persistence, or evaluation occurs in `BackgroundExecution`.
+- Location Provider and Event Engine remain untouched and un-imported.
+- Previously implemented tracking features (Tracking Engine, Tracking Session) behave correctly.
