@@ -8,6 +8,17 @@ let checkedInAt: string | undefined;
 let checkedOutAt: string | undefined;
 let lastError: string | undefined;
 
+/**
+ * Restores the engine to its previous state if an operation fails or is rejected.
+ * Attendance never owns GPS validation or location logic; it acts only as an orchestrator.
+ * State and timestamps are only committed after a fully successful location validation.
+ */
+function rollback(state: AttendanceState, inAt: string | undefined, outAt: string | undefined): void {
+  currentState = state;
+  checkedInAt = inAt;
+  checkedOutAt = outAt;
+}
+
 export const AttendanceEngine = {
   initialize(): void {
     currentState = AttendanceState.NOT_CHECKED_IN;
@@ -22,17 +33,31 @@ export const AttendanceEngine = {
     }
 
     const previousState = currentState;
+    const previousInAt = checkedInAt;
+    const previousOutAt = checkedOutAt;
+
     currentState = AttendanceState.CHECKING_IN;
     lastError = undefined;
 
     try {
       const config = ConfigurationEngine.config;
+      const geofence = config.runtime.attendance?.geofence;
+
+      if (!geofence || typeof geofence.center.latitude !== 'number' || typeof geofence.center.longitude !== 'number' || geofence.radiusMeters <= 0 || isNaN(geofence.center.latitude) || isNaN(geofence.center.longitude) || isNaN(geofence.radiusMeters)) {
+        rollback(previousState, previousInAt, previousOutAt);
+        return Object.freeze({
+          success: false,
+          state: currentState,
+          error: 'Invalid attendance configuration',
+          errorCode: AttendanceErrorCode.UNKNOWN_ERROR
+        });
+      }
       
       let location;
       try {
         location = await LocationProvider.getCurrentLocation();
       } catch (error: any) {
-        currentState = previousState;
+        rollback(previousState, previousInAt, previousOutAt);
         const code = error?.code === LocationErrorCode.PERMISSION_DENIED ? AttendanceErrorCode.PERMISSION_DENIED : AttendanceErrorCode.LOCATION_UNAVAILABLE;
         const msg = error?.message || 'Failed to acquire location';
         return Object.freeze({
@@ -47,14 +72,14 @@ export const AttendanceEngine = {
         currentLocation: location,
         options: {
           maxAccuracyMeters: config.runtime.gps.accuracyThresholdMeters,
-          geofence: config.runtime.attendance?.geofence
+          geofence
         }
       };
 
       const evaluation = LocationEvaluationEngine.evaluate(request);
 
       if (!evaluation.accepted) {
-        currentState = previousState;
+        rollback(previousState, previousInAt, previousOutAt);
         return Object.freeze({
           success: false,
           state: currentState,
@@ -63,6 +88,7 @@ export const AttendanceEngine = {
         });
       }
 
+      // Commit only after successful validation
       currentState = AttendanceState.CHECKED_IN;
       checkedInAt = new Date().toISOString();
       checkedOutAt = undefined;
@@ -73,13 +99,11 @@ export const AttendanceEngine = {
         timestamp: checkedInAt
       });
     } catch (error) {
-      currentState = AttendanceState.ERROR;
-      lastError = error instanceof Error ? error.message : String(error);
-      
+      rollback(previousState, previousInAt, previousOutAt);
       return Object.freeze({
         success: false,
         state: currentState,
-        error: lastError,
+        error: error instanceof Error ? error.message : String(error),
         errorCode: AttendanceErrorCode.UNKNOWN_ERROR
       });
     }
@@ -91,16 +115,31 @@ export const AttendanceEngine = {
     }
 
     const previousState = currentState;
+    const previousInAt = checkedInAt;
+    const previousOutAt = checkedOutAt;
+
     currentState = AttendanceState.CHECKING_OUT;
+    lastError = undefined;
 
     try {
       const config = ConfigurationEngine.config;
+      const geofence = config.runtime.attendance?.geofence;
+
+      if (!geofence || typeof geofence.center.latitude !== 'number' || typeof geofence.center.longitude !== 'number' || geofence.radiusMeters <= 0 || isNaN(geofence.center.latitude) || isNaN(geofence.center.longitude) || isNaN(geofence.radiusMeters)) {
+        rollback(previousState, previousInAt, previousOutAt);
+        return Object.freeze({
+          success: false,
+          state: currentState,
+          error: 'Invalid attendance configuration',
+          errorCode: AttendanceErrorCode.UNKNOWN_ERROR
+        });
+      }
       
       let location;
       try {
         location = await LocationProvider.getCurrentLocation();
       } catch (error: any) {
-        currentState = previousState;
+        rollback(previousState, previousInAt, previousOutAt);
         const code = error?.code === LocationErrorCode.PERMISSION_DENIED ? AttendanceErrorCode.PERMISSION_DENIED : AttendanceErrorCode.LOCATION_UNAVAILABLE;
         const msg = error?.message || 'Failed to acquire location';
         return Object.freeze({
@@ -115,14 +154,14 @@ export const AttendanceEngine = {
         currentLocation: location,
         options: {
           maxAccuracyMeters: config.runtime.gps.accuracyThresholdMeters,
-          geofence: config.runtime.attendance?.geofence
+          geofence
         }
       };
 
       const evaluation = LocationEvaluationEngine.evaluate(request);
 
       if (!evaluation.accepted) {
-        currentState = previousState;
+        rollback(previousState, previousInAt, previousOutAt);
         return Object.freeze({
           success: false,
           state: currentState,
@@ -131,6 +170,7 @@ export const AttendanceEngine = {
         });
       }
 
+      // Commit only after successful validation
       currentState = AttendanceState.CHECKED_OUT;
       checkedOutAt = new Date().toISOString();
 
@@ -140,13 +180,11 @@ export const AttendanceEngine = {
         timestamp: checkedOutAt
       });
     } catch (error) {
-      currentState = AttendanceState.ERROR;
-      lastError = error instanceof Error ? error.message : String(error);
-      
+      rollback(previousState, previousInAt, previousOutAt);
       return Object.freeze({
         success: false,
         state: currentState,
-        error: lastError,
+        error: error instanceof Error ? error.message : String(error),
         errorCode: AttendanceErrorCode.UNKNOWN_ERROR
       });
     }

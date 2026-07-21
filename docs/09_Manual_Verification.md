@@ -386,3 +386,14 @@ Extend the Attendance Engine so that attendance decisions become location-aware,
 3. **Valid Location Check-out**: While checked in, set location inside geofence, call `checkOut()`, verify it succeeds and state updates to `CHECKED_OUT`.
 4. **Invalid Location Check-out**: Set location outside geofence, call `checkOut()`, verify it fails with `LOCATION_EVALUATION_FAILED`, leaving state unchanged (`CHECKED_IN`).
 5. **No Location Access**: Deny GPS permission and verify `checkIn()` or `checkOut()` fails with `PERMISSION_DENIED` and states are preserved.
+
+## Slice 6B-A — Attendance Engine Hardening
+
+### Purpose
+Strengthen the Attendance Engine through configuration validation, robust rollback on failure, and comprehensive exception handling without modifying the public API.
+
+### Verification
+1. **Invalid Configuration**: Provide invalid or missing geofence coordinates in configuration; verify `checkIn()` fails with `UNKNOWN_ERROR` and state instantly rolls back to `NOT_CHECKED_IN` without calling location logic.
+2. **Unexpected Exceptions**: Simulate an unexpected error inside the engine (e.g. mocking a failure); verify the transaction is caught, state is rolled back, previous timestamps are preserved, and it returns `UNKNOWN_ERROR`.
+3. **Lifecycle Immutability**: Validate that multiple consecutive failures (e.g., location unavailable or denied) never leave the engine in `CHECKING_IN` or `CHECKING_OUT` state.
+4. **Successful Operation**: Verify that valid `checkIn()` and `checkOut()` still behave identically as they did in Slice 6B.
