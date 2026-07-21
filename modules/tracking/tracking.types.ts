@@ -14,6 +14,8 @@ export interface TrackingStatus {
   readonly state: TrackingState;
   readonly lastError?: string;
   readonly startedAt?: string;
+  readonly lastProcessedAt?: string;
+  readonly lastPersistedAt?: string;
 }
 
 export type ProcessLocationFailureType = 'PERSISTENCE_ERROR' | 'EVENT_ERROR' | 'CONCURRENCY_ERROR';

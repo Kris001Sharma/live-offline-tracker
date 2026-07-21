@@ -61,3 +61,9 @@ This document records the key architectural decisions made for the Sapana Live T
 - **Decision**: All location-based features shall consume a shared Location Provider and shared Location Rule Services. No feature may directly access the native Geolocation APIs or implement its own location validation, distance calculation, or geofence logic.
 - **Reason**: Centralizing all location-related functionality eliminates duplicate implementations, guarantees consistent business rules across the application, improves maintainability, and enables new location-based features such as Tracking, Attendance, Client Visits, and Geofencing to be added in a plug-and-play manner.
 - **Status**: Approved
+
+## ADR-009: Tracking Pipeline Ownership
+
+- **Decision**: The tracking pipeline shall be decomposed into dedicated Engines, each owning exactly one responsibility. TrackingSession owns **when** location collection occurs, TrackingEngine owns **what** happens to each collected location, BackgroundExecution owns **where** the scheduler executes (foreground/background lifecycle), and TrackingHealth owns **observing** pipeline health. Engines may collaborate only through approved public APIs and shall not assume another Engine's responsibility.
+- **Reason**: Separating scheduling, orchestration, platform lifecycle, and diagnostics prevents responsibility leakage, preserves clear architectural boundaries, improves testability, and allows each component to evolve independently without impacting the remainder of the tracking pipeline.
+- **Status**: Approved

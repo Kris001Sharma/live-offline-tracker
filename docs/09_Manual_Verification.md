@@ -304,3 +304,21 @@ Complete the Tracking Engine by implementing automatic recovery behaviour, ensur
 - Public APIs remain unchanged.
 - No new dependencies.
 - No architectural boundary changes.
+
+## Slice 5D — Tracking Health
+
+### Purpose
+Implement a read-only tracking health diagnostic layer to improve observability of the tracking pipeline.
+
+### Verification
+1. Start the tracking session.
+2. Query `TrackingHealth.status()` and verify that `isPipelineHealthy` returns `true` and state is `HEALTHY`.
+3. Induce a failure (e.g. GPS failure) and check `TrackingHealth.status()`.
+4. Verify that `consecutiveFailureCount` increments and `isRecoveryActive` becomes `true`.
+5. Verify that `state` degrades to `DEGRADED` or `UNHEALTHY` if failures exceed threshold.
+6. Verify that `TrackingHealth.status()` includes correct timestamps for location, processing, and persistence.
+
+### Slice 5D — Health Hardening
+1. Verify startup state returns `UNKNOWN` before the first polling tick completes, preventing premature `HEALTHY` or `STOPPED` reports.
+2. Induce a clock rollback (device time moves backwards) and verify the diagnostic layer avoids negative durations and remains operational.
+3. Simulate a delayed scheduler (tick doesn't occur for 2x interval) and verify health state degrades gracefully.

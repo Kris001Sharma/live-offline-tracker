@@ -10,4 +10,7 @@ export enum SessionState {
 export interface SessionStatus {
   readonly state: SessionState;
   readonly lastError?: string;
+  readonly lastTickAt?: string;
+  readonly lastLocationAt?: string;
+  readonly failureCount: number;
 }

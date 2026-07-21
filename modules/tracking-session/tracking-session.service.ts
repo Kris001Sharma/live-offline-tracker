@@ -14,6 +14,11 @@ let lastError: string | undefined;
 let timerId: ReturnType<typeof setTimeout> | undefined;
 let isExecutingCycle = false;
 
+// Health metrics
+let lastTickAt: string | undefined;
+let lastLocationAt: string | undefined;
+let failureCount: number = 0;
+
 async function executeCycle(): Promise<void> {
   // Defensive guard: Execution is only allowed when RUNNING.
   if (currentState !== SessionState.RUNNING) {
@@ -24,12 +29,15 @@ async function executeCycle(): Promise<void> {
     return;
   }
   isExecutingCycle = true;
+  lastTickAt = new Date().toISOString();
   
   try {
     let location;
     try {
       location = await LocationProvider.getCurrentLocation();
+      lastLocationAt = new Date().toISOString();
     } catch (error) {
+      failureCount++;
       // The scheduler intentionally survives GPS read failures.
       // Transient hardware or OS location failures must not terminate long-running offline tracking.
       try {
@@ -47,6 +55,7 @@ async function executeCycle(): Promise<void> {
     const result = await TrackingEngine.processLocation(location);
 
     if (!result.success && result.failure) {
+      failureCount++;
       if (result.failure.type === 'PERSISTENCE_ERROR') {
         // The scheduler intentionally survives persistence failures.
         // Intermittent storage availability must not permanently halt tracking.
@@ -62,8 +71,11 @@ async function executeCycle(): Promise<void> {
       }
       // For EVENT_ERROR, we just continue without logging another error event to avoid loop.
       // Event failures must never stop tracking.
+    } else {
+      failureCount = 0;
     }
   } catch (error) {
+    failureCount++;
     // Global catch-all to ensure executeCycle never throws and breaks the scheduling loop.
     try {
       await EventEngine.createEvent({
@@ -120,6 +132,10 @@ export const TrackingSession = {
     currentState = SessionState.STOPPED;
     lastError = undefined;
     isExecutingCycle = false;
+    
+    lastTickAt = undefined;
+    lastLocationAt = undefined;
+    failureCount = 0;
   },
 
   async start(): Promise<void> {
@@ -180,7 +196,10 @@ export const TrackingSession = {
   status(): SessionStatus {
     return {
       state: currentState,
-      lastError
+      lastError,
+      lastTickAt,
+      lastLocationAt,
+      failureCount
     };
   }
 };

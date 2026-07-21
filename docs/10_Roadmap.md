@@ -14,6 +14,7 @@ This document outlines the milestones, feature releases, and chronological plan 
 | Location Provider   | ✅ Frozen  | Core  | None                |
 | Location Evaluation | ✅ Frozen | Core  | Location            |
 | Tracking            | ✅ Frozen  | Core  | Location Evaluation |
+| Tracking Health     | ✅ Frozen  | Core  | Tracking            |
 | Attendance          | ⏳ Planned | Core  | Tracking            |
 | Sync                | ⏳ Planned | Core  | Event               |
 | Background Worker   | ⏳ Planned | Core  | Tracking            |

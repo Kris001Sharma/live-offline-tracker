@@ -11,12 +11,19 @@ let lastError: string | undefined;
 let startedAt: string | undefined;
 let isProcessingLocation = false;
 
+// Health metrics
+let lastProcessedAt: string | undefined;
+let lastPersistedAt: string | undefined;
+
 export const TrackingEngine = {
   initialize(): void {
     currentState = TrackingState.STOPPED;
     lastError = undefined;
     startedAt = undefined;
     isProcessingLocation = false;
+    
+    lastProcessedAt = undefined;
+    lastPersistedAt = undefined;
   },
 
   async start(): Promise<void> {
@@ -121,7 +128,9 @@ export const TrackingEngine = {
     return {
       state: currentState,
       lastError,
-      startedAt
+      startedAt,
+      lastProcessedAt,
+      lastPersistedAt
     };
   },
 
@@ -138,6 +147,7 @@ export const TrackingEngine = {
       };
     }
     isProcessingLocation = true;
+    lastProcessedAt = new Date().toISOString();
 
     try {
       let lastLocation;
@@ -209,6 +219,7 @@ export const TrackingEngine = {
             speed: location.speed ?? null,
             recorded_at: location.timestamp
           });
+          lastPersistedAt = new Date().toISOString();
         } catch (error) {
           return {
             location,
