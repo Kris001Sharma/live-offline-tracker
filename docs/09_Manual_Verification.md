@@ -569,3 +569,11 @@ Strengthen the Attendance Engine through configuration validation, robust rollba
 - **Immutable API**: Validated that every engine strictly exposes deep-cloned and deep-frozen objects (statuses, results, runtime objects, identities, profiles, registrations).
 - **Lifecycle Integrity**: Reviewed state machines to confirm that invalid transitions are blocked, repeated initialization/clearing/logout are idempotent, and registrations behave deterministically.
 - **ADR Verification**: Audited all completed subsystems against ADR-001 through ADR-009. **No deviations detected.**
+
+### Slice 8A — Sync Engine Foundation
+- **Initialize Idempotency**: Verify `initialize()` safely resets the engine state regardless of how many times it is called.
+- **Start Lifecycle**: Verify `start()` transitions from `STOPPED` -> `STARTING` -> `RUNNING`.
+- **Stop Lifecycle**: Verify `stop()` transitions from `RUNNING` -> `STOPPING` -> `STOPPED`.
+- **Invalid Transitions**: Verify `start()` throws if already running, and `stop()` throws if already stopped.
+- **Rollback Behavior**: Simulate a failure during start/stop and verify `rollbackSync()` restores the previous valid state.
+- **Immutable Status**: Verify `status()` and results are deep frozen and deeply cloned (`Object.isFrozen` returns `true`).

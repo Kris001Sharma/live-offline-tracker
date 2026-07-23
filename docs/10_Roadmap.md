@@ -91,12 +91,12 @@ This document outlines the milestones, feature releases, and chronological plan 
 ---
 
 ### Phase 8: Synchronization
-- **Status**: PLANNED ⏳
+- **Status**: IN PROGRESS 🔄
 - **Scope**: Upload pipeline for Locations, Attendance, Events, and future Photos. SQLite remains the authoritative offline source of truth.
 
 | Slice | Title | Status |
 | ----- | ----- | ------ |
-| **8A** | Sync Foundation | ⬜ SCHEDULED |
+| **8A** | Sync Foundation | ✅ COMPLETED |
 | **8B** | Connectivity Monitoring | ⬜ SCHEDULED |
 | **8C** | Upload Pipeline | ⬜ SCHEDULED |
 | **8D** | Retry Strategy | ⬜ SCHEDULED |
