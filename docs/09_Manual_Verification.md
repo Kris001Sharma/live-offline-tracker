@@ -491,3 +491,13 @@ Strengthen the Attendance Engine through configuration validation, robust rollba
 - **Immutable Profile**: Verify the stored `currentProfile` and all returned status objects are deeply frozen and immutable.
 - **Repeated Clear**: Verify calling `clear()` multiple times is idempotent and safely clears internal state.
 - **Defensive Getters**: Verify `profile()` and `status()` return valid objects or null safely, never exposing corrupted internal states.
+
+## Slice 7E — Trusted Device Foundation
+- **Initialize Idempotency**: Verify calling `initialize()` multiple times yields the same clean state without duplicate instances.
+- **Successful Device Load**: Verify `load()` retrieves correct device metadata and transitions to `READY`.
+- **Mandatory Field Validation**: Verify `load()` rejects missing mandatory fields and returns structured failure.
+- **Immutable Device Object**: Verify the cached device object is deeply cloned and frozen.
+- **Repeated Clear**: Verify `clear()` handles multiple calls gracefully and sets status to `CLEARED`.
+- **Repeated Load**: Verify calling `load()` multiple times respects lifecycle constraints.
+- **Invalid Lifecycle Transitions**: Verify state machine throws explicit lifecycle errors on invalid transitions.
+- **Status Immutability**: Verify `status()` and `device()` return immutable objects and are resistant to internal corruption.
