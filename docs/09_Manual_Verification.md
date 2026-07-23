@@ -445,3 +445,16 @@ Strengthen the Attendance Engine through configuration validation, robust rollba
 4. **Worker Properties**: Verify `workerId()` and `role()` return correct values or null.
 5. **Clear Identity**: Verify `clear()` removes runtime identity correctly.
 6. **Status Update**: Verify `status()` properly reflects initialization and authentication states, and returned objects cannot be mutated.
+
+### Slice 7B-A — User Context Hardening
+- **Invalid Worker Rejected**: Verify `setCurrentWorker()` rejects objects missing `id`, `email`, `role`, or `displayName`.
+- **Immutable Worker Object**: Verify nested structures within `CurrentWorker` are deeply frozen.
+- **Repeated Clear**: Verify calling `clear()` multiple times is safe and throws no exceptions.
+- **Runtime Corruption Handling**: Verify getters and status methods safely return null/undefined if internal state is unexpectedly corrupted.
+- **Role Helper Behaviour**: Verify internal `isWorker()`, `isAdmin()`, `isManager()` helpers correctly evaluate roles internally.
+
+### Slice 7B-A1
+- **Defensive Clone**: Verify the incoming worker is deeply cloned before freezing so that external mutations don't alter the internal state.
+- **Frozen Constants**: Verify exported/internal objects (e.g., default status and helpers) remain strictly immutable.
+- **Explicit Reset**: Verify `initialize()` correctly delegates to `clear()`.
+- **Idempotency**: Verify repeated `initialize()` calls clear the state properly and do not duplicate logic.
