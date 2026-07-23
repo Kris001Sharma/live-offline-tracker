@@ -97,6 +97,7 @@ This document outlines the milestones, feature releases, and chronological plan 
 | Slice | Title | Status |
 | ----- | ----- | ------ |
 | **8A** | Sync Foundation | ✅ COMPLETED |
+| **8A-A** | Sync Engine Hardening | ✅ COMPLETED |
 | **8B** | Connectivity Monitoring | ⬜ SCHEDULED |
 | **8C** | Upload Pipeline | ⬜ SCHEDULED |
 | **8D** | Retry Strategy | ⬜ SCHEDULED |

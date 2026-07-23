@@ -577,3 +577,12 @@ Strengthen the Attendance Engine through configuration validation, robust rollba
 - **Invalid Transitions**: Verify `start()` throws if already running, and `stop()` throws if already stopped.
 - **Rollback Behavior**: Simulate a failure during start/stop and verify `rollbackSync()` restores the previous valid state.
 - **Immutable Status**: Verify `status()` and results are deep frozen and deeply cloned (`Object.isFrozen` returns `true`).
+
+### Slice 8A-A — Sync Engine Hardening
+- **initialize() idempotency**: Verify `initialize()` safely resets the engine state without side-effects, correctly utilizing `clearInternal()`.
+- **clearInternal() delegation**: Confirm all reset operations route through `clearInternal()`.
+- **rollback restoration**: Verify `rollbackSync()` is called properly during any unexpected exception inside `start()` or `stop()`.
+- **defensive status()**: Call `status()` under unexpected internal conditions and verify it falls back to a frozen `DEFAULT_SYNC_STATUS` rather than throwing.
+- **immutable returned objects**: Verify the objects returned from `start()`, `stop()`, and `status()` are deeply frozen (`Object.isFrozen` returns `true`).
+- **repeated start()**: Verify calling `start()` while running returns a structured error without altering current running state.
+- **repeated stop()**: Verify calling `stop()` while stopped returns a structured error without side-effects.

@@ -7,6 +7,17 @@ import {
 import { DEFAULT_SYNC_STATUS } from './sync.constants';
 
 /**
+ * Offline Synchronization Engine
+ * 
+ * Architectural Responsibilities:
+ * - Sync Engine owns synchronization orchestration only.
+ * - Upload logic belongs to later slices.
+ * - Connectivity monitoring belongs to later slices.
+ * - Repository interaction and SQLite belong to later slices.
+ * - Authentication integration belongs to later slices.
+ */
+
+/**
  * Deep clones and deep freezes an object recursively to ensure immutability.
  */
 function deepCloneAndFreeze<T>(obj: T): T {
@@ -70,20 +81,33 @@ function commitState(): void {
   saveStateForRollback();
 }
 
+/**
+ * Single reset path for the engine.
+ * Ensures state is cleared safely and deterministically.
+ */
+function clearInternal(): void {
+  currentState = SyncState.STOPPED;
+  isRunning = false;
+  lastStartedAt = undefined;
+  lastStoppedAt = undefined;
+  lastSyncAttemptAt = undefined;
+  consecutiveFailures = 0;
+}
+
 export const SyncEngine = {
   initialize(): void {
-    currentState = SyncState.STOPPED;
-    isRunning = false;
-    lastStartedAt = undefined;
-    lastStoppedAt = undefined;
-    lastSyncAttemptAt = undefined;
-    consecutiveFailures = 0;
+    clearInternal();
     saveStateForRollback();
   },
 
   async start(): Promise<SyncResult> {
     if (currentState !== SyncState.STOPPED) {
-      throw new Error(`Sync Engine: Cannot start from state ${currentState}`);
+      return freezeResult({
+        success: false,
+        state: currentState,
+        error: `Sync Engine: Cannot start from state ${currentState}`,
+        errorCode: SyncErrorCode.INVALID_LIFECYCLE_TRANSITION
+      });
     }
 
     saveStateForRollback();
@@ -114,7 +138,12 @@ export const SyncEngine = {
 
   async stop(): Promise<SyncResult> {
     if (currentState !== SyncState.RUNNING) {
-      throw new Error(`Sync Engine: Cannot stop from state ${currentState}`);
+      return freezeResult({
+        success: false,
+        state: currentState,
+        error: `Sync Engine: Cannot stop from state ${currentState}`,
+        errorCode: SyncErrorCode.INVALID_LIFECYCLE_TRANSITION
+      });
     }
 
     saveStateForRollback();
@@ -144,13 +173,17 @@ export const SyncEngine = {
   },
 
   status(): SyncStatus {
-    return deepCloneAndFreeze({
-      state: currentState,
-      isRunning,
-      lastStartedAt,
-      lastStoppedAt,
-      lastSyncAttemptAt,
-      consecutiveFailures
-    });
+    try {
+      return deepCloneAndFreeze({
+        state: currentState,
+        isRunning,
+        lastStartedAt,
+        lastStoppedAt,
+        lastSyncAttemptAt,
+        consecutiveFailures
+      });
+    } catch (e) {
+      return deepCloneAndFreeze({ ...DEFAULT_SYNC_STATUS });
+    }
   }
 };
