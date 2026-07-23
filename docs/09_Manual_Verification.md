@@ -410,3 +410,10 @@ Strengthen the Attendance Engine through configuration validation, robust rollba
 2. **Completed Isolation**: Verify completed attendance records (check_out_at exists) are never mistakenly restored as active.
 3. **Duplicate Prevention**: Verify the repository actively rejects attempts to append a new session when an active one already exists.
 4. **Rollback Integrity**: Verify that if the repository rejects an append (e.g. duplicate session), the Engine fully rolls back its state and timestamps.
+
+## Slice 6D — Attendance Event Logging
+1. **Successful check-in**: Verify `checkIn()` succeeds and the attendance record is persisted, and `ATTENDANCE_CHECKED_IN` event exists.
+2. **Successful check-out**: Verify `checkOut()` succeeds, attendance updates, and `ATTENDANCE_CHECKED_OUT` event exists.
+3. **Rejected location**: Verify invalid location check-in/out leaves attendance unchanged and records `ATTENDANCE_LOCATION_REJECTED`.
+4. **Repository failure**: Simulate repository error and verify a rollback occurs while `ATTENDANCE_PERSISTENCE_FAILED` is recorded.
+5. **EventEngine failure**: Simulate `EventEngine.createEvent` failing and verify that attendance still succeeds, with no rollback, no recursive failures, and engine remains healthy.

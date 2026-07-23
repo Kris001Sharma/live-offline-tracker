@@ -3,6 +3,8 @@ import { LocationProvider, LocationErrorCode } from '../location';
 import { LocationEvaluationEngine, LocationEvaluationRequest } from '../location-evaluation';
 import { ConfigurationEngine } from '../configuration';
 import { AttendanceRepository } from '../repositories';
+import { EventEngine } from '../event';
+import { EventType } from '../domain';
 
 let currentState: AttendanceState = AttendanceState.NOT_CHECKED_IN;
 let checkedInAt: string | undefined;
@@ -20,6 +22,19 @@ function rollback(state: AttendanceState, inAt: string | undefined, outAt: strin
   checkedInAt = inAt;
   checkedOutAt = outAt;
   activeAttendanceId = attendanceId;
+}
+
+async function logEventSafe(type: EventType, payload: unknown): Promise<void> {
+  try {
+    await EventEngine.createEvent({
+      type,
+      workerId: 'SYSTEM',
+      payload
+    });
+  } catch (error) {
+    // Suppress event generation failure to prevent corrupting attendance transactions
+    console.warn(`[AttendanceEngine] Failed to log event ${type}:`, error);
+  }
 }
 
 export const AttendanceEngine = {
@@ -50,6 +65,10 @@ export const AttendanceEngine = {
 
       if (!geofence || typeof geofence.center.latitude !== 'number' || typeof geofence.center.longitude !== 'number' || geofence.radiusMeters <= 0 || isNaN(geofence.center.latitude) || isNaN(geofence.center.longitude) || isNaN(geofence.radiusMeters)) {
         rollback(previousState, previousInAt, previousOutAt, previousAttendanceId);
+        await logEventSafe(EventType.ATTENDANCE_ERROR, {
+          action: 'checkIn',
+          error: 'Invalid attendance configuration'
+        });
         return Object.freeze({
           success: false,
           state: currentState,
@@ -65,6 +84,11 @@ export const AttendanceEngine = {
         rollback(previousState, previousInAt, previousOutAt, previousAttendanceId);
         const code = error?.code === LocationErrorCode.PERMISSION_DENIED ? AttendanceErrorCode.PERMISSION_DENIED : AttendanceErrorCode.LOCATION_UNAVAILABLE;
         const msg = error?.message || 'Failed to acquire location';
+        await logEventSafe(EventType.ATTENDANCE_ERROR, {
+          action: 'checkIn',
+          error: msg,
+          code
+        });
         return Object.freeze({
           success: false,
           state: currentState,
@@ -85,6 +109,10 @@ export const AttendanceEngine = {
 
       if (!evaluation.accepted) {
         rollback(previousState, previousInAt, previousOutAt, previousAttendanceId);
+        await logEventSafe(EventType.ATTENDANCE_LOCATION_REJECTED, {
+          action: 'checkIn',
+          reasons: evaluation.reasons
+        });
         return Object.freeze({
           success: false,
           state: currentState,
@@ -107,6 +135,10 @@ export const AttendanceEngine = {
         });
       } catch (error) {
         rollback(previousState, previousInAt, previousOutAt, previousAttendanceId);
+        await logEventSafe(EventType.ATTENDANCE_PERSISTENCE_FAILED, {
+          action: 'checkIn',
+          error: error instanceof Error ? error.message : String(error)
+        });
         return Object.freeze({
           success: false,
           state: currentState,
@@ -121,6 +153,11 @@ export const AttendanceEngine = {
       checkedOutAt = undefined;
       activeAttendanceId = newAttendanceId;
 
+      await logEventSafe(EventType.ATTENDANCE_CHECKED_IN, {
+        attendanceId: newAttendanceId,
+        timestamp: now
+      });
+
       return Object.freeze({
         success: true,
         state: currentState,
@@ -128,6 +165,10 @@ export const AttendanceEngine = {
       });
     } catch (error) {
       rollback(previousState, previousInAt, previousOutAt, previousAttendanceId);
+      await logEventSafe(EventType.ATTENDANCE_ERROR, {
+        action: 'checkIn',
+        error: error instanceof Error ? error.message : String(error)
+      });
       return Object.freeze({
         success: false,
         state: currentState,
@@ -156,6 +197,10 @@ export const AttendanceEngine = {
 
       if (!geofence || typeof geofence.center.latitude !== 'number' || typeof geofence.center.longitude !== 'number' || geofence.radiusMeters <= 0 || isNaN(geofence.center.latitude) || isNaN(geofence.center.longitude) || isNaN(geofence.radiusMeters)) {
         rollback(previousState, previousInAt, previousOutAt, previousAttendanceId);
+        await logEventSafe(EventType.ATTENDANCE_ERROR, {
+          action: 'checkOut',
+          error: 'Invalid attendance configuration'
+        });
         return Object.freeze({
           success: false,
           state: currentState,
@@ -171,6 +216,11 @@ export const AttendanceEngine = {
         rollback(previousState, previousInAt, previousOutAt, previousAttendanceId);
         const code = error?.code === LocationErrorCode.PERMISSION_DENIED ? AttendanceErrorCode.PERMISSION_DENIED : AttendanceErrorCode.LOCATION_UNAVAILABLE;
         const msg = error?.message || 'Failed to acquire location';
+        await logEventSafe(EventType.ATTENDANCE_ERROR, {
+          action: 'checkOut',
+          error: msg,
+          code
+        });
         return Object.freeze({
           success: false,
           state: currentState,
@@ -191,6 +241,10 @@ export const AttendanceEngine = {
 
       if (!evaluation.accepted) {
         rollback(previousState, previousInAt, previousOutAt, previousAttendanceId);
+        await logEventSafe(EventType.ATTENDANCE_LOCATION_REJECTED, {
+          action: 'checkOut',
+          reasons: evaluation.reasons
+        });
         return Object.freeze({
           success: false,
           state: currentState,
@@ -209,6 +263,10 @@ export const AttendanceEngine = {
           currentId = activeSession.id;
         } else {
           rollback(previousState, previousInAt, previousOutAt, previousAttendanceId);
+          await logEventSafe(EventType.ATTENDANCE_PERSISTENCE_FAILED, {
+            action: 'checkOut',
+            error: 'No active attendance record found to checkout'
+          });
           return Object.freeze({
             success: false,
             state: currentState,
@@ -222,6 +280,10 @@ export const AttendanceEngine = {
         await AttendanceRepository.updateCheckOut(currentId, now);
       } catch (error) {
         rollback(previousState, previousInAt, previousOutAt, previousAttendanceId);
+        await logEventSafe(EventType.ATTENDANCE_PERSISTENCE_FAILED, {
+          action: 'checkOut',
+          error: error instanceof Error ? error.message : String(error)
+        });
         return Object.freeze({
           success: false,
           state: currentState,
@@ -235,6 +297,11 @@ export const AttendanceEngine = {
       checkedOutAt = now;
       activeAttendanceId = undefined;
 
+      await logEventSafe(EventType.ATTENDANCE_CHECKED_OUT, {
+        attendanceId: currentId,
+        timestamp: now
+      });
+
       return Object.freeze({
         success: true,
         state: currentState,
@@ -242,6 +309,10 @@ export const AttendanceEngine = {
       });
     } catch (error) {
       rollback(previousState, previousInAt, previousOutAt, previousAttendanceId);
+      await logEventSafe(EventType.ATTENDANCE_ERROR, {
+        action: 'checkOut',
+        error: error instanceof Error ? error.message : String(error)
+      });
       return Object.freeze({
         success: false,
         state: currentState,
