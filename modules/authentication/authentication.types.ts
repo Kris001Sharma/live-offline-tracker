@@ -17,6 +17,11 @@ export interface AuthenticationStatus {
   readonly state: AuthenticationState;
   readonly userId?: string;
   readonly lastError?: string;
+  readonly lastLoginAt?: string;
+  readonly lastLogoutAt?: string;
+  readonly lastRestoreAttemptAt?: string;
+  readonly lastAuthenticationFailureAt?: string;
+  readonly consecutiveFailures: number;
 }
 
 export interface AuthenticationResult {
@@ -27,6 +32,6 @@ export interface AuthenticationResult {
 }
 
 export interface AuthenticatedUser {
-  id: string;
-  email?: string;
+  readonly id: string;
+  readonly email?: string;
 }

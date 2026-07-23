@@ -424,3 +424,16 @@ Strengthen the Attendance Engine through configuration validation, robust rollba
 3. **Session Restore**: Verify `restoreSession()` succeeds and restores state to `AUTHENTICATED` when a valid session exists.
 4. **Logout**: Verify `logout()` clears the session and resets state to `UNAUTHENTICATED`.
 5. **Invalid Lifecycle Transitions**: Verify `login` while `AUTHENTICATED` explicitly throws a lifecycle error.
+
+### Slice 7A-A — Authentication Hardening
+- `initialize()` remains idempotent.
+- `login()` succeeds with valid credentials.
+- invalid credentials return structured failure.
+- `logout()` always clears local authentication state.
+- `restoreSession()` correctly distinguishes:
+  - active session
+  - expired session
+  - missing session
+- repeated `initialize()` creates no duplicate listeners.
+- immutable objects cannot be mutated.
+- lifecycle errors continue rejecting invalid transitions.

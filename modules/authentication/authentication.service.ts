@@ -1,4 +1,4 @@
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient, AuthError } from '@supabase/supabase-js';
 import { ConfigurationEngine } from '../configuration';
 import { 
   AuthenticationState, 
@@ -13,16 +13,70 @@ let currentUserId: string | undefined;
 let lastError: string | undefined;
 let supabaseClient: SupabaseClient | null = null;
 let currentAuthenticatedUser: AuthenticatedUser | null = null;
+let initialized = false;
+
+// Metrics
+let lastLoginAt: string | undefined;
+let lastLogoutAt: string | undefined;
+let lastRestoreAttemptAt: string | undefined;
+let lastAuthenticationFailureAt: string | undefined;
+let consecutiveFailures: number = 0;
+
+function freezeResult(result: AuthenticationResult): AuthenticationResult {
+  return Object.freeze({ ...result });
+}
+
+function handleAuthFailure(errorMsg: string, code: AuthenticationErrorCode): AuthenticationResult {
+  currentState = AuthenticationState.UNAUTHENTICATED;
+  lastError = errorMsg;
+  lastAuthenticationFailureAt = new Date().toISOString();
+  consecutiveFailures += 1;
+
+  return freezeResult({
+    success: false,
+    state: currentState,
+    error: lastError,
+    errorCode: code
+  });
+}
+
+function parseSupabaseError(error: AuthError | null | any): AuthenticationErrorCode {
+  if (!error) return AuthenticationErrorCode.UNKNOWN_ERROR;
+  const msg = error?.message?.toLowerCase() || '';
+  if (error?.status === 400 || msg.includes('credential')) {
+    return AuthenticationErrorCode.INVALID_CREDENTIALS;
+  } else if (error?.status === 0 || msg.includes('network') || msg.includes('fetch')) {
+    return AuthenticationErrorCode.NETWORK_ERROR;
+  } else if (msg.includes('expire') || msg.includes('refresh') || msg.includes('session')) {
+    return AuthenticationErrorCode.SESSION_EXPIRED;
+  }
+  return AuthenticationErrorCode.UNKNOWN_ERROR;
+}
 
 export const AuthenticationEngine = {
   initialize(): void {
+    if (initialized) {
+      currentState = AuthenticationState.UNAUTHENTICATED;
+      currentUserId = undefined;
+      currentAuthenticatedUser = null;
+      lastError = undefined;
+      return;
+    }
+
     currentState = AuthenticationState.UNAUTHENTICATED;
     currentUserId = undefined;
     currentAuthenticatedUser = null;
     lastError = undefined;
     
+    lastLoginAt = undefined;
+    lastLogoutAt = undefined;
+    lastRestoreAttemptAt = undefined;
+    lastAuthenticationFailureAt = undefined;
+    consecutiveFailures = 0;
+
     const config = ConfigurationEngine.config.environment.supabase;
     supabaseClient = createClient(config.url, config.anonKey);
+    initialized = true;
   },
 
   async login(email: string, password: string): Promise<AuthenticationResult> {
@@ -44,48 +98,28 @@ export const AuthenticationEngine = {
       });
 
       if (error) {
-        currentState = AuthenticationState.UNAUTHENTICATED;
-        lastError = error.message;
-        let errorCode = AuthenticationErrorCode.UNKNOWN_ERROR;
-        
-        if (error.status === 400 || error.message.toLowerCase().includes('credential')) {
-          errorCode = AuthenticationErrorCode.INVALID_CREDENTIALS;
-        } else if (error.status === 0 || error.message.toLowerCase().includes('network')) {
-          errorCode = AuthenticationErrorCode.NETWORK_ERROR;
-        }
-
-        return Object.freeze({
-          success: false,
-          state: currentState,
-          error: lastError,
-          errorCode
-        });
+        return handleAuthFailure(error.message, parseSupabaseError(error));
       }
 
       if (!data.user || !data.session) {
-        throw new Error('Authentication failed: No session returned');
+        return handleAuthFailure('Authentication failed: No session returned', AuthenticationErrorCode.UNKNOWN_ERROR);
       }
 
       currentState = AuthenticationState.AUTHENTICATED;
       currentUserId = data.user.id;
-      currentAuthenticatedUser = {
+      currentAuthenticatedUser = Object.freeze({
         id: data.user.id,
         email: data.user.email
-      };
+      });
+      lastLoginAt = new Date().toISOString();
+      consecutiveFailures = 0;
 
-      return Object.freeze({
+      return freezeResult({
         success: true,
         state: currentState
       });
     } catch (err: any) {
-      currentState = AuthenticationState.UNAUTHENTICATED;
-      lastError = err.message || String(err);
-      return Object.freeze({
-        success: false,
-        state: currentState,
-        error: lastError,
-        errorCode: AuthenticationErrorCode.UNKNOWN_ERROR
-      });
+      return handleAuthFailure(err.message || String(err), AuthenticationErrorCode.UNKNOWN_ERROR);
     }
   },
 
@@ -107,28 +141,19 @@ export const AuthenticationEngine = {
       if (error) {
         console.warn('Authentication Engine: Supabase sign out failed', error);
       }
-      
-      currentState = AuthenticationState.UNAUTHENTICATED;
-      currentUserId = undefined;
-      currentAuthenticatedUser = null;
-
-      return Object.freeze({
-        success: true,
-        state: currentState
-      });
     } catch (err: any) {
+      console.warn('Authentication Engine: Unexpected error during sign out', err);
+    } finally {
       currentState = AuthenticationState.UNAUTHENTICATED;
       currentUserId = undefined;
       currentAuthenticatedUser = null;
-      lastError = err.message || String(err);
-      
-      return Object.freeze({
-        success: true,
-        state: currentState,
-        error: lastError,
-        errorCode: AuthenticationErrorCode.UNKNOWN_ERROR
-      });
+      lastLogoutAt = new Date().toISOString();
     }
+
+    return freezeResult({
+      success: true,
+      state: currentState
+    });
   },
 
   async restoreSession(): Promise<AuthenticationResult> {
@@ -142,59 +167,33 @@ export const AuthenticationEngine = {
 
     currentState = AuthenticationState.REFRESHING;
     lastError = undefined;
+    lastRestoreAttemptAt = new Date().toISOString();
 
     try {
       const { data, error } = await supabaseClient.auth.getSession();
 
       if (error) {
-        currentState = AuthenticationState.UNAUTHENTICATED;
-        lastError = error.message;
-        
-        let errorCode = AuthenticationErrorCode.UNKNOWN_ERROR;
-        if (error.message.toLowerCase().includes('expired') || error.message.toLowerCase().includes('refresh')) {
-           errorCode = AuthenticationErrorCode.SESSION_EXPIRED;
-        } else if (error.status === 0 || error.message.toLowerCase().includes('network')) {
-           errorCode = AuthenticationErrorCode.NETWORK_ERROR;
-        }
-        
-        return Object.freeze({
-          success: false,
-          state: currentState,
-          error: lastError,
-          errorCode
-        });
+        return handleAuthFailure(error.message, parseSupabaseError(error));
       }
 
       if (!data.session) {
-        currentState = AuthenticationState.UNAUTHENTICATED;
-        return Object.freeze({
-          success: false,
-          state: currentState,
-          error: 'No active session found',
-          errorCode: AuthenticationErrorCode.SESSION_EXPIRED
-        });
+        return handleAuthFailure('No active session found', AuthenticationErrorCode.SESSION_EXPIRED);
       }
 
       currentState = AuthenticationState.AUTHENTICATED;
       currentUserId = data.session.user.id;
-      currentAuthenticatedUser = {
+      currentAuthenticatedUser = Object.freeze({
         id: data.session.user.id,
         email: data.session.user.email
-      };
+      });
+      consecutiveFailures = 0;
 
-      return Object.freeze({
+      return freezeResult({
         success: true,
         state: currentState
       });
     } catch (err: any) {
-      currentState = AuthenticationState.UNAUTHENTICATED;
-      lastError = err.message || String(err);
-      return Object.freeze({
-        success: false,
-        state: currentState,
-        error: lastError,
-        errorCode: AuthenticationErrorCode.UNKNOWN_ERROR
-      });
+      return handleAuthFailure(err.message || String(err), AuthenticationErrorCode.UNKNOWN_ERROR);
     }
   },
 
@@ -202,7 +201,12 @@ export const AuthenticationEngine = {
     return Object.freeze({
       state: currentState,
       userId: currentUserId,
-      lastError
+      lastError,
+      lastLoginAt,
+      lastLogoutAt,
+      lastRestoreAttemptAt,
+      lastAuthenticationFailureAt,
+      consecutiveFailures
     });
   },
 
@@ -210,6 +214,6 @@ export const AuthenticationEngine = {
     if (currentState !== AuthenticationState.AUTHENTICATED || !currentAuthenticatedUser) {
       return null;
     }
-    return Object.freeze({ ...currentAuthenticatedUser });
+    return currentAuthenticatedUser;
   }
 };
