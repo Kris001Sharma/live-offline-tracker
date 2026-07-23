@@ -473,3 +473,12 @@ Strengthen the Attendance Engine through configuration validation, robust rollba
 - **Defensive Logout**: Verify repeated calls to `logout()` succeed if already logged out.
 - **Restore Validation**: Verify `restore()` accurately verifies that Authentication is authenticated AND User Context is populated.
 - **Frozen Session Status**: Verify `status()` deeply freezes its returned state object.
+
+## Slice 7D — Worker Profile Engine
+- **Initialize Idempotency**: Verify `initialize()` is idempotent and leaves no duplicate state.
+- **Load Profile**: Verify `load()` retrieves and freezes profile.
+- **Refresh Profile**: Verify `refresh()` replaces profile correctly.
+- **Clear Profile**: Verify `clear()` removes cached profile and transitions to `CLEARED`.
+- **Lifecycle Transitions**: Verify invalid lifecycle transitions throw explicit lifecycle errors.
+- **Profile Immutability**: Verify the immutable profile object cannot be modified.
+- **Failed Loads**: Verify failed loads never leave partial profiles, and correctly revert to `CLEARED`.
