@@ -528,3 +528,11 @@ Strengthen the Attendance Engine through configuration validation, robust rollba
 - **Persistence Failure Rollback**: Verify that if SQLite throws an error, the operation returns a `PERSISTENCE_ERROR` and no partial records are written.
 - **Immutable Outputs**: Verify that the result object is frozen.
 - **Repository Integrity**: Verify that `findByWorker` and `findByDevice` return accurate structures mapped perfectly from SQLite.
+
+### Slice 7F-A — Trusted Device Registration Hardening
+- **Atomic Registration**: Attempt registration and verify that no partial or transient registration objects remain if persistence fails or evaluation is interrupted.
+- **Defensive Runtime Validation**: Pass an invalid worker (e.g. missing `id`) or device (e.g. missing `deviceId` or `appVersion`) and verify `registerCurrentDevice()` returns `PRECONDITION_FAILED` structured error without touching the database.
+- **Repository Ownership**: Verify database lookup queries (`findByWorkerAndDevice`, `findApprovedByWorker`) are fully owned by `TrustedDeviceRepository` rather than in-engine filtering.
+- **Registration Rollback**: Simulate a repository error or duplicate rejection and confirm `rollbackRegistration()` is invoked on every failure path, restoring runtime state cleanly.
+- **Exception Translation**: Simulate a database execution error and verify the repository catches raw SQLite exceptions and translates them to `PERSISTENCE_ERROR`.
+- **Immutable Registration Objects**: Call `registration()`, `status()`, and `registerCurrentDevice()`, and verify returned objects are deep-cloned and frozen (`Object.isFrozen` returns `true`).

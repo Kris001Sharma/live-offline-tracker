@@ -67,6 +67,7 @@ This document outlines the milestones, feature releases, and chronological plan 
 | **7E-A** | Trusted Device Engine Hardening | ✅ COMPLETED |
 | **7E-B** | Trusted Device Engine Final Hardening | ✅ COMPLETED |
 | **7F** | Trusted Device Registration | ✅ COMPLETED |
+| **7F-A** | Trusted Device Registration Hardening | ✅ COMPLETED |
 | **7G** | End-to-End Identity Validation | ⬜ SCHEDULED |
 
 #### Slice Responsibilities
@@ -75,7 +76,9 @@ This document outlines the milestones, feature releases, and chronological plan 
 - **7C Authentication Session**: Orchestration between Authentication Engine and User Context Engine with rollback support.
 - **7D Worker Profile Engine**: Manages application-specific worker metadata (employee code, role, active status, organization, trusted device reference, profile sync). Replaces temporary placeholders in Auth Session.
 - **7E Trusted Device Registration**: Single trusted Android device management, device registration, admin approval, device replacement. Intentionally simple without root/emulator detection.
-- **7F End-to-End Identity Validation**: Architecture audit, offline authentication verification, session restore, logout recovery, trusted device scenarios, documentation freeze.
+- **7F Trusted Device Registration**: SQLite device registration persistence, status check, pending registration management.
+- **7F-A Trusted Device Registration Hardening**: Atomic registration transaction, defensive runtime validation, registration rollback, repository ownership, exception translation, deep freeze immutability.
+- **7G End-to-End Identity Validation**: Architecture audit, offline authentication verification, session restore, logout recovery, trusted device scenarios, documentation freeze.
 
 ---
 
