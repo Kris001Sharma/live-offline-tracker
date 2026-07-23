@@ -466,3 +466,10 @@ Strengthen the Attendance Engine through configuration validation, robust rollba
 - **Restore**: Verify `restore()` recreates the User Context upon finding a valid session.
 - **Logout**: Verify `logout()` clears both the Authentication engine and the User Context engine, even if network fails.
 - **Status Immutability**: Verify the returned status objects remain completely frozen.
+
+### Slice 7C-A — Auth Session Hardening
+- **Atomic Session Construction**: Verify the `CurrentWorker` is fully constructed before `setCurrentWorker()` is invoked in `login()`.
+- **Single Rollback Function**: Verify `rollbackSession()` is consistently invoked to clean up both Authentication Engine and User Context Engine upon any failure.
+- **Defensive Logout**: Verify repeated calls to `logout()` succeed if already logged out.
+- **Restore Validation**: Verify `restore()` accurately verifies that Authentication is authenticated AND User Context is populated.
+- **Frozen Session Status**: Verify `status()` deeply freezes its returned state object.
