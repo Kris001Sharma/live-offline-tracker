@@ -7,6 +7,20 @@ import {
   TrustedDeviceErrorCode
 } from './trusted-device.types';
 
+/**
+ * ARCHITECTURE NOTE: Trusted Device Engine Ownership
+ * 
+ * This engine owns runtime device identity only.
+ * It strictly answers: "What device is this application currently running on?"
+ * 
+ * This engine intentionally performs NO trust validation, NO authentication, and NO registration.
+ * Device approval and trusted-device verification belong to future Trusted Device Registration slices.
+ * 
+ * Why no persistence? The engine must query the real device hardware every session to prevent spoofing via stale cache.
+ * Why no approval logic? Trust is an administrative state, not a device property.
+ * Why no Authentication? Device identity is independent of user identity. A device exists even before login.
+ */
+
 let initialized = false;
 let state = TrustedDeviceState.EMPTY;
 let currentDevice: TrustedDeviceIdentity | null = null;
@@ -55,7 +69,7 @@ function transitionTo(newState: TrustedDeviceState): void {
 }
 
 function validateDevice(device: Partial<TrustedDeviceIdentity>): device is TrustedDeviceIdentity {
-  if (!device.deviceId || !device.manufacturer || !device.model || !device.platform) {
+  if (!device || !device.deviceId || !device.manufacturer || !device.model || !device.platform || !device.appVersion) {
     return false;
   }
   return true;
@@ -68,21 +82,27 @@ export const TrustedDeviceEngine = {
       state = TrustedDeviceState.EMPTY;
       currentDevice = null;
       lastLoadedAt = undefined;
+    } else {
+      clearInternal();
     }
   },
 
   async load(): Promise<TrustedDeviceResult> {
-    if (!initialized) {
-      throw new Error('Trusted Device Engine is not initialized');
-    }
-
-    if (state !== TrustedDeviceState.EMPTY && state !== TrustedDeviceState.CLEARED) {
-      throw new Error(`Trusted Device Engine: Cannot load from state ${state}`);
-    }
-
-    transitionTo(TrustedDeviceState.LOADING);
-
     try {
+      if (!initialized) {
+        throw new Error('Trusted Device Engine is not initialized');
+      }
+
+      if (state === TrustedDeviceState.READY && currentDevice) {
+        return Object.freeze({ success: true });
+      }
+
+      if (state !== TrustedDeviceState.EMPTY && state !== TrustedDeviceState.CLEARED) {
+        throw new Error(`Trusted Device Engine: Cannot load from state ${state}`);
+      }
+
+      transitionTo(TrustedDeviceState.LOADING);
+
       const deviceIdInfo = await Device.getId();
       const deviceInfo = await Device.getInfo();
       
@@ -102,6 +122,7 @@ export const TrustedDeviceEngine = {
         throw new Error('Mandatory device information is missing');
       }
 
+      // Atomic Assignment
       currentDevice = deepCloneAndFreeze(rawDevice);
       lastLoadedAt = new Date().toISOString();
 
@@ -138,6 +159,9 @@ export const TrustedDeviceEngine = {
       return null;
     }
     if (!currentDevice) {
+      return null;
+    }
+    if (!validateDevice(currentDevice)) {
       return null;
     }
     return currentDevice;

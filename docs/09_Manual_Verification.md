@@ -501,3 +501,20 @@ Strengthen the Attendance Engine through configuration validation, robust rollba
 - **Repeated Load**: Verify calling `load()` multiple times respects lifecycle constraints.
 - **Invalid Lifecycle Transitions**: Verify state machine throws explicit lifecycle errors on invalid transitions.
 - **Status Immutability**: Verify `status()` and `device()` return immutable objects and are resistant to internal corruption.
+
+### Slice 7E-A — Trusted Device Engine Hardening
+- **Repeated Initialize**: Verify `initialize()` is idempotent, safely clearing runtime state without duplicating instances.
+- **Repeated Load**: Verify `load()` while already `READY` returns the existing immutable identity safely without side-effects.
+- **Repeated Clear**: Verify `clear()` successfully uses the unified reset path with no side effects.
+- **App Version Validation**: Verify `load()` rejects missing `appVersion` and throws a structured failure.
+- **Frozen Constants**: Verify internal default state objects remain fully immutable at runtime.
+- **Defensive Getters**: Verify `device()` and `status()` return valid objects or null safely, never exposing corrupted internal states.
+- **Lifecycle Transition Validation**: Verify that state machine accurately prevents invalid transitions.
+
+### Slice 7E-B — Trusted Device Engine Final Hardening
+- **Atomic Device Construction**: Verify that runtime state assignment occurs exactly once after deep cloning and freezing is complete.
+- **Defensive Exception Boundary**: Verify that any unexpected exception inside `load()` triggers `clearInternal()`, resets state to `CLEARED`, and returns a structured error without throwing.
+- **Impossible LOADING Deadlock**: Verify that the engine cannot remain permanently in `LOADING` regardless of Capacitor failure or validation rejection.
+- **Frozen Status Objects**: Verify that `status()` and `device()` continue returning deeply immutable objects.
+- **Defensive Runtime Validation**: Verify that calling `device()` validates the cached device object and returns null if unexpectedly corrupted.
+- **Source Documentation Accuracy**: Read the architectural comments in the source to confirm they explain the absence of persistence, approval logic, and authentication correctly.
