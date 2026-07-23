@@ -586,3 +586,12 @@ Strengthen the Attendance Engine through configuration validation, robust rollba
 - **immutable returned objects**: Verify the objects returned from `start()`, `stop()`, and `status()` are deeply frozen (`Object.isFrozen` returns `true`).
 - **repeated start()**: Verify calling `start()` while running returns a structured error without altering current running state.
 - **repeated stop()**: Verify calling `stop()` while stopped returns a structured error without side-effects.
+
+### Slice 8B — Connectivity Monitoring
+- **initialize() idempotency**: Verify `initialize()` safely resets the engine and clears any existing listeners without duplicating them.
+- **monitoring lifecycle**: Verify `startMonitoring()` correctly transitions `STOPPED` -> `STARTING` -> `MONITORING`. Verify `stopMonitoring()` transitions `MONITORING` -> `STOPPING` -> `STOPPED`.
+- **listener creation and cleanup**: Verify `Network.addListener` is called precisely once during start, and `listener.remove()` is called during stop or re-initialization.
+- **duplicate listener prevention**: Verify calling `startMonitoring()` multiple times is correctly rejected due to lifecycle rules, preventing duplicate listeners.
+- **online/offline detection**: Simulate network changes and confirm `isOnline()` and `lastConnectivityChangeAt` accurately update.
+- **immutable status**: Verify `status()` and result objects are deep-frozen (`Object.isFrozen` returns `true`).
+- **rollback behavior**: Simulate an error during listener registration and verify `rollbackConnectivity()` restores the previous snapshot.
