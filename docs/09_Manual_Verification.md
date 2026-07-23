@@ -482,3 +482,12 @@ Strengthen the Attendance Engine through configuration validation, robust rollba
 - **Lifecycle Transitions**: Verify invalid lifecycle transitions throw explicit lifecycle errors.
 - **Profile Immutability**: Verify the immutable profile object cannot be modified.
 - **Failed Loads**: Verify failed loads never leave partial profiles, and correctly revert to `CLEARED`.
+
+### Slice 7D-A — Worker Profile Hardening
+- **Repeated Initialize**: Verify calling `initialize()` multiple times yields the same clean state without duplicate instances.
+- **Deep Clone Before Freeze**: Verify that profiles sourced from Supabase are deep cloned before freezing and assignment.
+- **Invalid Profile Rejection**: Verify `load()` and `refresh()` correctly reject profiles missing mandatory fields and throw structured errors.
+- **Refresh Rollback Atomicity**: Verify that if `refresh()` fails, the previous valid profile remains active and the lifecycle reverts to `READY`.
+- **Immutable Profile**: Verify the stored `currentProfile` and all returned status objects are deeply frozen and immutable.
+- **Repeated Clear**: Verify calling `clear()` multiple times is idempotent and safely clears internal state.
+- **Defensive Getters**: Verify `profile()` and `status()` return valid objects or null safely, never exposing corrupted internal states.
