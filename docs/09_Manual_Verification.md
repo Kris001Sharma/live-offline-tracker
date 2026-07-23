@@ -458,3 +458,11 @@ Strengthen the Attendance Engine through configuration validation, robust rollba
 - **Frozen Constants**: Verify exported/internal objects (e.g., default status and helpers) remain strictly immutable.
 - **Explicit Reset**: Verify `initialize()` correctly delegates to `clear()`.
 - **Idempotency**: Verify repeated `initialize()` calls clear the state properly and do not duplicate logic.
+
+### Slice 7C — Authentication & User Context Integration
+- **Idempotency**: Verify `initialize()` can be called multiple times without issues.
+- **Login Success**: Verify a successful login populates the User Context properly.
+- **Login Failure**: Verify a failed login leaves the User Context empty and rolls back any partial state.
+- **Restore**: Verify `restore()` recreates the User Context upon finding a valid session.
+- **Logout**: Verify `logout()` clears both the Authentication engine and the User Context engine, even if network fails.
+- **Status Immutability**: Verify the returned status objects remain completely frozen.
