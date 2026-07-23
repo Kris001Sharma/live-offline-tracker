@@ -437,3 +437,11 @@ Strengthen the Attendance Engine through configuration validation, robust rollba
 - repeated `initialize()` creates no duplicate listeners.
 - immutable objects cannot be mutated.
 - lifecycle errors continue rejecting invalid transitions.
+
+## Slice 7B — User Context Engine
+1. **Initialize Idempotency**: Verify `initialize()` is idempotent and leaves no duplicate state.
+2. **Set Current Worker**: Verify `setCurrentWorker()` properly stores the runtime user, freezing the output.
+3. **Current Worker**: Verify `currentWorker()` returns the immutable worker object.
+4. **Worker Properties**: Verify `workerId()` and `role()` return correct values or null.
+5. **Clear Identity**: Verify `clear()` removes runtime identity correctly.
+6. **Status Update**: Verify `status()` properly reflects initialization and authentication states, and returned objects cannot be mutated.
