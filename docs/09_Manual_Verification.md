@@ -536,3 +536,16 @@ Strengthen the Attendance Engine through configuration validation, robust rollba
 - **Registration Rollback**: Simulate a repository error or duplicate rejection and confirm `rollbackRegistration()` is invoked on every failure path, restoring runtime state cleanly.
 - **Exception Translation**: Simulate a database execution error and verify the repository catches raw SQLite exceptions and translates them to `PERSISTENCE_ERROR`.
 - **Immutable Registration Objects**: Call `registration()`, `status()`, and `registerCurrentDevice()`, and verify returned objects are deep-cloned and frozen (`Object.isFrozen` returns `true`).
+
+### Slice 7G — Authentication Hardening
+- **Login Rollback**: Simulate a network error during `login()` and verify `currentState` rolls back deterministically to `UNAUTHENTICATED` (or previous valid state).
+- **Session Restore Matrix**: Verify deterministic outcomes for:
+  - Expired session (online) -> automatic refresh -> `AUTHENTICATED`.
+  - Expired session (offline) -> `SESSION_EXPIRED` failure.
+  - Valid session (offline) -> returns cached session -> `AUTHENTICATED`.
+  - Missing session -> `NO_SESSION` or `OFFLINE_NO_SESSION`.
+- **Session Consistency**: Mock an inconsistent session payload (e.g. missing `access_token`) and verify `INCONSISTENT_SESSION` structured failure.
+- **Idempotent Initialization**: Call `initialize()` multiple times and verify that Supabase client instances or subscriptions are not duplicated.
+- **Defensive Logout**: Call `logout()` when already logged out, verify it returns success without throwing exceptions.
+- **Exception Translation**: Simulate a Supabase SDK crash during `refreshSession()` and verify it is caught, translated, and returned as a structured `AuthenticationResult` without propagating upward.
+- **Immutable Authentication Objects**: Call `status()`, `currentUser()`, `login()`, and verify returned objects are deep-frozen (`Object.isFrozen` returns `true`).

@@ -68,7 +68,8 @@ This document outlines the milestones, feature releases, and chronological plan 
 | **7E-B** | Trusted Device Engine Final Hardening | ✅ COMPLETED |
 | **7F** | Trusted Device Registration | ✅ COMPLETED |
 | **7F-A** | Trusted Device Registration Hardening | ✅ COMPLETED |
-| **7G** | End-to-End Identity Validation | ⬜ SCHEDULED |
+| **7G** | Authentication Hardening | ✅ COMPLETED |
+| **7H** | End-to-End Identity Validation | ⬜ SCHEDULED |
 
 #### Slice Responsibilities
 - **7A Authentication Engine**: Supabase Auth integration, sign-in/out, session restoration, error handling.
@@ -78,7 +79,8 @@ This document outlines the milestones, feature releases, and chronological plan 
 - **7E Trusted Device Registration**: Single trusted Android device management, device registration, admin approval, device replacement. Intentionally simple without root/emulator detection.
 - **7F Trusted Device Registration**: SQLite device registration persistence, status check, pending registration management.
 - **7F-A Trusted Device Registration Hardening**: Atomic registration transaction, defensive runtime validation, registration rollback, repository ownership, exception translation, deep freeze immutability.
-- **7G End-to-End Identity Validation**: Architecture audit, offline authentication verification, session restore, logout recovery, trusted device scenarios, documentation freeze.
+- **7G Authentication Hardening**: Session consistency validation, robust offline authentication behavior, immutable state, single rollback path.
+- **7H End-to-End Identity Validation**: Architecture audit, offline authentication verification, session restore, logout recovery, trusted device scenarios, documentation freeze.
 
 ---
 
