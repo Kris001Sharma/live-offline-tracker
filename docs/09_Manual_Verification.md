@@ -549,3 +549,23 @@ Strengthen the Attendance Engine through configuration validation, robust rollba
 - **Defensive Logout**: Call `logout()` when already logged out, verify it returns success without throwing exceptions.
 - **Exception Translation**: Simulate a Supabase SDK crash during `refreshSession()` and verify it is caught, translated, and returned as a structured `AuthenticationResult` without propagating upward.
 - **Immutable Authentication Objects**: Call `status()`, `currentUser()`, `login()`, and verify returned objects are deep-frozen (`Object.isFrozen` returns `true`).
+
+### Slice 7H — End-to-End Authentication & Identity Validation
+- **Authentication Lifecycle**: Verify `initialize()`, `login()`, `logout()`, `restoreSession()` transitions, ensuring no duplicate initialization, no unhandled state transitions, and deterministic behavior.
+- **User Context & Worker Profile**: Validate that runtime identity syncs correctly after login/restore, clears correctly on logout, and handles failed profile retrievals via rollback.
+- **Auth Session Orchestration**: Confirm that `AuthSessionEngine.login()` properly coordinates Authentication, User Context, and Worker Profile, maintaining atomicity across the three.
+- **Trusted Device & Registration**: Verify that device identity is immutable. Verify that registration behaves atomically, catches duplicate registrations/workers, and cleanly rolls back on persistence failures.
+- **Offline Resilience**: Simulate offline startup, cached session restore, and offline logout. Verify that `OFFLINE_NO_SESSION` and `NETWORK_ERROR` correctly reflect network reality without corrupting local state.
+- **Stress & Failure Simulation**: Perform 100 consecutive cycles of `login -> logout -> restore -> initialize` to guarantee no memory leaks, unhandled promises, or duplicate listeners. Inject artificial repository failures, revoked tokens, and invalid credentials to verify resilient exception translation and state preservation.
+
+---
+
+## Milestone — Architecture Baseline Audit (Pre-Phase 8)
+- **Architecture Verification**: Audited `Configuration`, `Storage`, `Migration`, `Location`, `Tracking`, `Attendance`, `Event`, `Authentication`, `User Context`, `Worker Profile`, `Auth Session`, `Trusted Device`, and `Trusted Device Registration` engines against the Production Architecture.
+- **Dependency Verification**: Confirmed strict unidirectional dependency flow: Presentation (Future) -> Authentication -> User Context -> Worker Profile -> Auth Session -> Attendance -> Tracking -> Repositories -> Storage -> SQLite. No upward or circular dependencies detected.
+- **Engine & Repository Ownership**: Verified that repositories exclusively own SQL and persistence, while engines exclusively own orchestration and business rules.
+- **Offline Verification**: Verified offline-first operational integrity for Tracking, Attendance, Events, Repositories, SQLite, Authentication (via cached session), Trusted Device, and Worker Context. All operate independently of cloud connectivity.
+- **Rollback Strategy**: Confirmed every subsystem (`rollback()`, `rollbackAuthentication()`, `rollbackSession()`, `rollbackRegistration()`) successfully restores the previous valid state atomically without exposing partial states.
+- **Immutable API**: Validated that every engine strictly exposes deep-cloned and deep-frozen objects (statuses, results, runtime objects, identities, profiles, registrations).
+- **Lifecycle Integrity**: Reviewed state machines to confirm that invalid transitions are blocked, repeated initialization/clearing/logout are idempotent, and registrations behave deterministically.
+- **ADR Verification**: Audited all completed subsystems against ADR-001 through ADR-009. **No deviations detected.**

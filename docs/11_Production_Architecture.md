@@ -156,3 +156,49 @@ This document intentionally excludes:
 - Image storage strategy is frozen.
 - Deployment architecture is frozen.
 - Future module implementations will adhere to these established boundaries without requiring foundational architectural re-engineering.
+
+---
+
+## Architecture Baseline (Pre-Phase 8)
+
+### Verified Subsystems
+The following completed engines have been audited and verified for production:
+- Configuration Engine
+- Storage Engine (SQLite)
+- Migration Engine
+- Location Provider (GPS)
+- Location Evaluation Engine
+- Tracking Engine (Orchestration)
+- Tracking Session (Scheduler)
+- Tracking Health (Diagnostics)
+- Attendance Engine (Lifecycle)
+- Attendance Repository
+- Event Engine
+- Authentication Engine (Lifecycle)
+- User Context Engine (Runtime Identity)
+- Worker Profile Engine (Business Profile)
+- Auth Session Engine (Orchestration)
+- Trusted Device Engine (Device Identity)
+- Trusted Device Registration Engine (Workflow)
+
+All listed engines are officially frozen prior to synchronization.
+
+### Current Dependency Graph
+The baseline enforces a strict unidirectional dependency graph with no upward dependencies or circular imports:
+`Authentication` -> `User Context` -> `Worker Profile` -> `Auth Session` -> `Attendance` -> `Tracking` -> `Repositories` -> `Storage` -> `SQLite`.
+
+### Engine & Repository Ownership
+- **Engines** own orchestration and business rules (e.g. tracking rules, attendance states, profile handling).
+- **Repositories** strictly own SQL execution, persistence mapping, and lookup queries. No business logic resides in repositories.
+
+### Offline-First Readiness
+Every completed subsystem (Tracking, Attendance, Events, Repositories, Authentication via cached sessions, Trusted Device) has been verified to function autonomously without cloud connectivity. Data transactions securely persist to local SQLite.
+
+### Architectural Health & Rollback Strategy
+- Every module enforces consistent, atomic rollback behavior (e.g. `rollbackAuthentication()`, `rollbackSession()`, `rollbackRegistration()`) to prevent partial or corrupt states.
+- All exported state (`status()`, identities, profiles, registrations) are guaranteed immutable via deep cloning and freezing.
+- ADR compliance has been audited with **no deviations detected**.
+
+### Outstanding Risks & Next Steps
+- The backend remains isolated from the cloud backend.
+- **Phase 8 (Synchronization)** will introduce the background upload pipeline to sync the authoritative local SQLite store with Supabase.
