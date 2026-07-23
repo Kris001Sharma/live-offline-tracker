@@ -518,3 +518,13 @@ Strengthen the Attendance Engine through configuration validation, robust rollba
 - **Frozen Status Objects**: Verify that `status()` and `device()` continue returning deeply immutable objects.
 - **Defensive Runtime Validation**: Verify that calling `device()` validates the cached device object and returns null if unexpectedly corrupted.
 - **Source Documentation Accuracy**: Read the architectural comments in the source to confirm they explain the absence of persistence, approval logic, and authentication correctly.
+
+## Slice 7F — Trusted Device Registration
+- **First Registration**: Verify that registering an unregistered device creates a `PENDING_APPROVAL` record and returns success.
+- **Repeated Registration**: Verify that re-registering an already pending device returns `PENDING_APPROVAL` safely without duplicating records.
+- **Duplicate Device Registration**: Verify that an approved device returns `APPROVED` directly.
+- **Duplicate Worker Registration**: Verify that attempting to register a different device when an approved one exists returns `DEVICE_MISMATCH`.
+- **Pending Approval State**: Verify the repository correctly identifies pending registrations.
+- **Persistence Failure Rollback**: Verify that if SQLite throws an error, the operation returns a `PERSISTENCE_ERROR` and no partial records are written.
+- **Immutable Outputs**: Verify that the result object is frozen.
+- **Repository Integrity**: Verify that `findByWorker` and `findByDevice` return accurate structures mapped perfectly from SQLite.
