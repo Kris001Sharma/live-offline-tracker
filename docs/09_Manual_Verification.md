@@ -417,3 +417,10 @@ Strengthen the Attendance Engine through configuration validation, robust rollba
 3. **Rejected location**: Verify invalid location check-in/out leaves attendance unchanged and records `ATTENDANCE_LOCATION_REJECTED`.
 4. **Repository failure**: Simulate repository error and verify a rollback occurs while `ATTENDANCE_PERSISTENCE_FAILED` is recorded.
 5. **EventEngine failure**: Simulate `EventEngine.createEvent` failing and verify that attendance still succeeds, with no rollback, no recursive failures, and engine remains healthy.
+
+## Slice 7A — Authentication Foundation
+1. **Login Success**: Verify `login(email, password)` succeeds with valid credentials, state becomes `AUTHENTICATED`, and `currentUser()` returns the correct user.
+2. **Login Failure**: Verify `login` with invalid credentials returns `INVALID_CREDENTIALS` and state remains `UNAUTHENTICATED`.
+3. **Session Restore**: Verify `restoreSession()` succeeds and restores state to `AUTHENTICATED` when a valid session exists.
+4. **Logout**: Verify `logout()` clears the session and resets state to `UNAUTHENTICATED`.
+5. **Invalid Lifecycle Transitions**: Verify `login` while `AUTHENTICATED` explicitly throws a lifecycle error.
