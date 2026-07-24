@@ -9,6 +9,7 @@ export enum SyncErrorCode {
   INVALID_LIFECYCLE_TRANSITION = 'INVALID_LIFECYCLE_TRANSITION',
   OFFLINE = 'OFFLINE',
   PIPELINE_STAGE_FAILED = 'PIPELINE_STAGE_FAILED',
+  MAX_RETRIES_EXCEEDED = 'MAX_RETRIES_EXCEEDED',
   UNKNOWN_ERROR = 'UNKNOWN_ERROR'
 }
 
@@ -25,6 +26,10 @@ export interface SyncStatus {
   readonly lastSyncedModule?: string;
   readonly itemsUploaded: number;
   readonly itemsRemaining: number;
+  readonly retryCount: number;
+  readonly lastRetryAt?: string;
+  readonly nextRetryDelay?: number;
+  readonly lastRetryReason?: string;
 }
 
 export interface SyncResult {

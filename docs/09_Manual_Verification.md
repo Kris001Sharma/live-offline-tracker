@@ -625,3 +625,12 @@ Strengthen the Attendance Engine through configuration validation, robust rollba
 - **deep immutability**: Verify `status()`, `start()`, and `stop()` return deeply frozen objects.
 - **single execution path**: Verify there is a single pipeline execution method (`executePipeline()`).
 - **architectural ownership**: Confirm comments correctly delineate SyncEngine's role strictly to orchestration.
+
+### Slice 8D — Retry Strategy
+- **retry counter increments**: Verify `status().retryCount` increments by 1 following each pipeline failure.
+- **exponential delay calculation**: Verify `status().nextRetryDelay` correctly calculates sequential delays (5s, 10s, 20s, 40s, 60s).
+- **maximum retry limit**: Verify a 6th sequential call (after 5 retries fail) to `start()` immediately returns `MAX_RETRIES_EXCEEDED` without executing uploads.
+- **retry reset after success**: Verify that a successful pipeline execution properly resets `retryCount`, `lastRetryAt`, `nextRetryDelay`, and `lastRetryReason` to their defaults.
+- **immutable retry metrics**: Verify that `status()` returns deeply frozen metrics, including retry fields.
+- **rollback restoring retry state**: Throw an unexpected exception deep inside `start()` and verify that `rollbackSync()` perfectly restores retry metrics to their previous pre-execution snapshot.
+- **deterministic failure classification**: Confirm failures strictly map to explicit classifications like `PIPELINE_STAGE_FAILED`, `OFFLINE`, and `MAX_RETRIES_EXCEEDED`.

@@ -102,7 +102,8 @@ This document outlines the milestones, feature releases, and chronological plan 
 | **8B-A** | Connectivity Engine Hardening | ✅ COMPLETED |
 | **8C** | Upload Pipeline | ✅ COMPLETED |
 | **8C-A** | Upload Pipeline Hardening | ✅ COMPLETED |
-| **8D** | Retry Strategy | ⬜ SCHEDULED |
+| **8D** | Retry Strategy | ✅ COMPLETED |
+
 | **8E** | Conflict Handling | ⬜ SCHEDULED |
 | **8F** | End-to-End Validation | ⬜ SCHEDULED |
 

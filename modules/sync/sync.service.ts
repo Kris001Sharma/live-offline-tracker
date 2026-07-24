@@ -10,7 +10,12 @@ import {
   SyncResult, 
   SyncErrorCode 
 } from './sync.types';
-import { DEFAULT_SYNC_STATUS } from './sync.constants';
+import { 
+  DEFAULT_SYNC_STATUS, 
+  MAX_RETRIES, 
+  BASE_RETRY_DELAY, 
+  MAX_RETRY_DELAY 
+} from './sync.constants';
 
 /**
  * Offline Synchronization Engine
@@ -18,11 +23,13 @@ import { DEFAULT_SYNC_STATUS } from './sync.constants';
  * Architectural Responsibilities:
  * - Sync Engine owns synchronization orchestration only.
  * - Upload implementations remain delegated.
- * - Retry belongs exclusively to Slice 8D.
+ * - Retry belongs exclusively to Sync Engine.
+ * - Retry metrics remain runtime-only.
+ * - Retry logic never persists to SQLite.
  * - Conflict handling belongs exclusively to Slice 8E.
- * - Scheduling belongs to future phases.
+ * - Scheduling belongs to a future phase.
  * - SQL remains repository owned.
- * - HTTP remains upload provider owned.
+ * - HTTP uploads remain delegated to upload providers.
  */
 
 function deepCloneAndFreeze<T>(obj: T): T {
@@ -62,6 +69,11 @@ let lastSyncedModule: string | undefined;
 let itemsUploaded: number = 0;
 let itemsRemaining: number = 0;
 
+let retryCount: number = 0;
+let lastRetryAt: string | undefined;
+let nextRetryDelay: number | undefined;
+let lastRetryReason: string | undefined;
+
 // Rollback state
 let previousState: SyncState = SyncState.STOPPED;
 let previousIsRunning: boolean = false;
@@ -75,6 +87,10 @@ let previousLastSyncDuration: number | undefined;
 let previousLastSyncedModule: string | undefined;
 let previousItemsUploaded: number = 0;
 let previousItemsRemaining: number = 0;
+let previousRetryCount: number = 0;
+let previousLastRetryAt: string | undefined;
+let previousNextRetryDelay: number | undefined;
+let previousLastRetryReason: string | undefined;
 
 function saveStateForRollback(): void {
   previousState = currentState;
@@ -89,6 +105,10 @@ function saveStateForRollback(): void {
   previousLastSyncedModule = lastSyncedModule;
   previousItemsUploaded = itemsUploaded;
   previousItemsRemaining = itemsRemaining;
+  previousRetryCount = retryCount;
+  previousLastRetryAt = lastRetryAt;
+  previousNextRetryDelay = nextRetryDelay;
+  previousLastRetryReason = lastRetryReason;
 }
 
 function rollbackSync(): void {
@@ -104,6 +124,10 @@ function rollbackSync(): void {
   lastSyncedModule = previousLastSyncedModule;
   itemsUploaded = previousItemsUploaded;
   itemsRemaining = previousItemsRemaining;
+  retryCount = previousRetryCount;
+  lastRetryAt = previousLastRetryAt;
+  nextRetryDelay = previousNextRetryDelay;
+  lastRetryReason = previousLastRetryReason;
 }
 
 function commitState(): void {
@@ -127,6 +151,10 @@ function clearInternal(): void {
   lastSyncedModule = undefined;
   itemsUploaded = 0;
   itemsRemaining = 0;
+  retryCount = 0;
+  lastRetryAt = undefined;
+  nextRetryDelay = undefined;
+  lastRetryReason = undefined;
 }
 
 type SyncStage = {
@@ -196,6 +224,15 @@ export const SyncEngine = {
       });
     }
 
+    if (retryCount > MAX_RETRIES) {
+      return freezeResult({
+        success: false,
+        state: currentState,
+        error: 'Sync Engine: Maximum retries exceeded',
+        errorCode: SyncErrorCode.MAX_RETRIES_EXCEEDED
+      });
+    }
+
     // Offline short-circuit
     if (!ConnectivityEngine.isOnline()) {
       return freezeResult({
@@ -228,6 +265,23 @@ export const SyncEngine = {
         isRunning = false;
         lastFailedSyncAt = new Date().toISOString();
         consecutiveFailures += 1;
+        retryCount += 1;
+        lastRetryAt = new Date().toISOString();
+        lastRetryReason = pipelineResult.error?.message || 'Unknown pipeline failure';
+
+        if (retryCount > MAX_RETRIES) {
+          nextRetryDelay = undefined;
+          commitState();
+          return freezeResult({
+            success: false,
+            state: currentState,
+            error: 'Maximum retries exceeded',
+            errorCode: SyncErrorCode.MAX_RETRIES_EXCEEDED
+          });
+        }
+
+        // Deterministic exponential backoff calculation
+        nextRetryDelay = Math.min(BASE_RETRY_DELAY * Math.pow(2, retryCount - 1), MAX_RETRY_DELAY);
         commitState();
 
         return freezeResult({
@@ -246,6 +300,10 @@ export const SyncEngine = {
       itemsUploaded = pipelineResult.totalUploaded;
       itemsRemaining = pipelineResult.totalRemaining;
       consecutiveFailures = 0;
+      retryCount = 0;
+      lastRetryAt = undefined;
+      nextRetryDelay = undefined;
+      lastRetryReason = undefined;
       commitState();
 
       return freezeResult({
@@ -314,7 +372,11 @@ export const SyncEngine = {
         lastSyncDuration,
         lastSyncedModule,
         itemsUploaded,
-        itemsRemaining
+        itemsRemaining,
+        retryCount,
+        lastRetryAt,
+        nextRetryDelay,
+        lastRetryReason
       });
     } catch (e) {
       return deepCloneAndFreeze({ ...DEFAULT_SYNC_STATUS });

@@ -7,5 +7,10 @@ export const DEFAULT_SYNC_STATUS: SyncStatus = Object.freeze({
   isRunning: false,
   consecutiveFailures: 0,
   itemsUploaded: 0,
-  itemsRemaining: 0
+  itemsRemaining: 0,
+  retryCount: 0
 });
+
+export const MAX_RETRIES = 5;
+export const BASE_RETRY_DELAY = 5;
+export const MAX_RETRY_DELAY = 60;
