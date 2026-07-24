@@ -595,3 +595,13 @@ Strengthen the Attendance Engine through configuration validation, robust rollba
 - **online/offline detection**: Simulate network changes and confirm `isOnline()` and `lastConnectivityChangeAt` accurately update.
 - **immutable status**: Verify `status()` and result objects are deep-frozen (`Object.isFrozen` returns `true`).
 - **rollback behavior**: Simulate an error during listener registration and verify `rollbackConnectivity()` restores the previous snapshot.
+
+### Slice 8B-A — Connectivity Engine Hardening
+- **initialize() idempotency**: Verify `initialize()` safely resets the engine state without side-effects, correctly utilizing `clearInternal()`.
+- **clearInternal()**: Confirm all reset operations route through `clearInternal()`, including disposing the listener.
+- **listener cleanup**: Verify the listener is safely removed in `clearInternal()`.
+- **duplicate listener prevention**: Verify calling `startMonitoring()` multiple times is correctly rejected.
+- **rollback behaviour**: Verify `rollbackConnectivity()` is called properly during any unexpected exception inside `startMonitoring()` or `stopMonitoring()`.
+- **defensive status()**: Call `status()` under unexpected internal conditions and verify it falls back to a frozen `DEFAULT_CONNECTIVITY_STATUS` rather than throwing.
+- **defensive isOnline()**: Verify `isOnline()` returns the boolean value without throwing, falling back to false on unexpected errors.
+- **immutable outputs**: Verify the objects returned from `startMonitoring()`, `stopMonitoring()`, and `status()` are deeply frozen (`Object.isFrozen` returns `true`).

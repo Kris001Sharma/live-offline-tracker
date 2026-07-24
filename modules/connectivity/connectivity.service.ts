@@ -12,9 +12,10 @@ import { DEFAULT_CONNECTIVITY_STATUS } from './connectivity.constants';
  * Connectivity Engine
  * 
  * Architectural Responsibilities:
- * - Owns runtime connectivity state.
- * - Monitors network availability.
- * - DOES NOT own synchronization, upload scheduling, or repositories.
+ * - Connectivity Engine owns network state only.
+ * - Sync decisions belong exclusively to Sync Engine.
+ * - Upload orchestration belongs to later slices.
+ * - Repository interaction is prohibited.
  */
 
 function deepCloneAndFreeze<T>(obj: T): T {
@@ -192,7 +193,11 @@ export const ConnectivityEngine = {
   },
 
   isOnline(): boolean {
-    return isOnline;
+    try {
+      return !!isOnline;
+    } catch (e) {
+      return false;
+    }
   },
 
   status(): ConnectivityStatus {
