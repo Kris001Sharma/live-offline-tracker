@@ -644,3 +644,16 @@ Strengthen the Attendance Engine through configuration validation, robust rollba
 - **deterministic policy selection**: Confirm the evaluator never returns ambiguous decisions or relies on external side effects.
 - **immutable conflict objects**: Verify `evaluateConflict` returns deeply frozen `SyncConflictResult` objects.
 - **rollback on unexpected exceptions**: (Assuming future integrations rely on rollback) Confirm that the evaluator does not mutate Sync Engine runtime state and failures are rolled back properly during pipeline orchestration.
+
+### Slice 8F — End-to-End Validation & Freeze
+- **complete synchronization lifecycle**: Verify the execution flow correctly chains Connectivity Check -> Offline Short-Circuit -> Upload Pipeline -> Retry Strategy -> Conflict Evaluation -> Completion.
+- **offline startup**: Confirm that starting the app while offline prevents the Sync Engine from transitioning to RUNNING and cleanly short-circuits.
+- **offline short-circuit**: Confirm that invoking `SyncEngine.start()` without connectivity returns an immediate `OFFLINE` error.
+- **connectivity restoration**: Verify that network transition events properly re-evaluate synchronization capabilities.
+- **upload ordering**: Confirm the exact pipeline order remains: Trusted Device Registration -> Attendance -> Tracking Events.
+- **retry exhaustion**: Verify the pipeline immediately aborts without further execution once `MAX_RETRIES` (5) is reached.
+- **conflict evaluation**: Confirm that `evaluateConflict` successfully resolves versions without mutating engine state.
+- **rollback integrity**: Artificially fail an upload pipeline stage and verify `rollbackSync()` fully restores runtime and retry state.
+- **immutable outputs**: Confirm all methods returning `SyncStatus`, `SyncResult`, and `SyncConflictResult` use deep cloning and freezing.
+- **dependency validation**: Confirm that Sync Engine solely orchestrates and relies strictly on Repositories for data without importing infrastructure components inappropriately.
+- **architecture ownership validation**: Confirm that conflict rules remain inside Sync Engine and are not leaked into repositories.

@@ -159,7 +159,7 @@ This document intentionally excludes:
 
 ---
 
-## Architecture Baseline (Pre-Phase 8)
+## Architecture Baseline (Post-Phase 8 Validation)
 
 ### Verified Subsystems
 The following completed engines have been audited and verified for production:
@@ -181,18 +181,20 @@ The following completed engines have been audited and verified for production:
 - Trusted Device Engine (Device Identity)
 - Trusted Device Registration Engine (Workflow)
 
-All listed engines are officially frozen prior to synchronization.
+- Sync Engine (Orchestration, Pipeline, Retry, Conflict)
+- Connectivity Engine (Network Monitoring)
+All listed engines are officially frozen.
 
 ### Current Dependency Graph
 The baseline enforces a strict unidirectional dependency graph with no upward dependencies or circular imports:
-`Authentication` -> `User Context` -> `Worker Profile` -> `Auth Session` -> `Attendance` -> `Tracking` -> `Repositories` -> `Storage` -> `SQLite`.
+`Sync Engine` -> `Connectivity Engine` -> `Authentication` -> `User Context` -> `Worker Profile` -> `Auth Session` -> `Attendance` -> `Tracking` -> `Repositories` -> `Storage` -> `SQLite`.
 
 ### Engine & Repository Ownership
 - **Engines** own orchestration and business rules (e.g. tracking rules, attendance states, profile handling).
 - **Repositories** strictly own SQL execution, persistence mapping, and lookup queries. No business logic resides in repositories.
 
 ### Offline-First Readiness
-Every completed subsystem (Tracking, Attendance, Events, Repositories, Authentication via cached sessions, Trusted Device) has been verified to function autonomously without cloud connectivity. Data transactions securely persist to local SQLite.
+Every completed subsystem (Tracking, Attendance, Events, Repositories, Authentication, Trusted Device, Synchronization) has been verified to function autonomously without cloud connectivity. Data transactions securely persist to local SQLite. The Synchronization subsystem correctly short-circuits when offline and guarantees no loss of local operational capability.
 
 ### Architectural Health & Rollback Strategy
 - Every module enforces consistent, atomic rollback behavior (e.g. `rollbackAuthentication()`, `rollbackSession()`, `rollbackRegistration()`) to prevent partial or corrupt states.
@@ -200,5 +202,5 @@ Every completed subsystem (Tracking, Attendance, Events, Repositories, Authentic
 - ADR compliance has been audited with **no deviations detected**.
 
 ### Outstanding Risks & Next Steps
-- The backend remains isolated from the cloud backend.
-- **Phase 8 (Synchronization)** will introduce the background upload pipeline to sync the authoritative local SQLite store with Supabase.
+- Cloud backend connectivity and HTTP synchronization implementations are deferred to the cloud integration phases.
+- **Phase 9 (Administration)** will introduce the required operational, reporting, and management layers.
