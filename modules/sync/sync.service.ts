@@ -17,10 +17,12 @@ import { DEFAULT_SYNC_STATUS } from './sync.constants';
  * 
  * Architectural Responsibilities:
  * - Sync Engine owns synchronization orchestration only.
- * - Upload logic belongs to later slices.
- * - Retry belongs to Slice 8D.
- * - Conflict handling belongs to Slice 8E.
+ * - Upload implementations remain delegated.
+ * - Retry belongs exclusively to Slice 8D.
+ * - Conflict handling belongs exclusively to Slice 8E.
  * - Scheduling belongs to future phases.
+ * - SQL remains repository owned.
+ * - HTTP remains upload provider owned.
  */
 
 function deepCloneAndFreeze<T>(obj: T): T {
@@ -132,13 +134,11 @@ type SyncStage = {
   execute: () => Promise<{ uploaded: number; remaining: number }>;
 };
 
-const UPLOAD_PIPELINE: SyncStage[] = [
+const UPLOAD_PIPELINE: readonly SyncStage[] = deepCloneAndFreeze([
   {
     name: 'Trusted Device Registration',
     execute: async () => {
-      // Determine what pending local records should be synchronized
       const pending = await TrustedDeviceRepository.findPending();
-      // Actual upload implementation remains delegated to future slices
       return { uploaded: 0, remaining: pending.length };
     }
   },
@@ -146,7 +146,6 @@ const UPLOAD_PIPELINE: SyncStage[] = [
     name: 'Attendance',
     execute: async () => {
       const pending = await AttendanceRepository.findPending();
-      // Actual upload implementation remains delegated to future slices
       return { uploaded: 0, remaining: pending.length };
     }
   },
@@ -154,11 +153,32 @@ const UPLOAD_PIPELINE: SyncStage[] = [
     name: 'Tracking Events',
     execute: async () => {
       const pending = await EventRepository.getUnsyncedEvents();
-      // Actual upload implementation remains delegated to future slices
       return { uploaded: 0, remaining: pending.length };
     }
   }
-];
+]);
+
+async function executePipeline(): Promise<{ success: boolean, totalUploaded: number; totalRemaining: number, error?: any }> {
+  let totalUploaded = 0;
+  let totalRemaining = 0;
+
+  for (const stage of UPLOAD_PIPELINE) {
+    if (!stage || typeof stage.name !== 'string' || typeof stage.execute !== 'function') {
+      return { success: false, totalUploaded, totalRemaining, error: new Error('Invalid stage definition') };
+    }
+
+    lastSyncedModule = stage.name;
+    try {
+      const result = await stage.execute();
+      totalUploaded += result.uploaded;
+      totalRemaining += result.remaining;
+    } catch (error: any) {
+      return { success: false, totalUploaded, totalRemaining, error: new Error(`Sync Pipeline failed at stage: ${stage.name}. ${error.message || String(error)}`) };
+    }
+  }
+
+  return { success: true, totalUploaded, totalRemaining };
+}
 
 export const SyncEngine = {
   initialize(): void {
@@ -196,31 +216,26 @@ export const SyncEngine = {
       lastStartedAt = new Date().toISOString();
       commitState();
 
-      let totalUploaded = 0;
-      let totalRemaining = 0;
+      const pipelineResult = await executePipeline();
 
-      // Sequential deterministic upload order
-      for (const stage of UPLOAD_PIPELINE) {
-        lastSyncedModule = stage.name;
-        try {
-          const result = await stage.execute();
-          totalUploaded += result.uploaded;
-          totalRemaining += result.remaining;
-        } catch (stageError: any) {
-          // Stop the pipeline immediately on failure
-          currentState = SyncState.STOPPED;
-          isRunning = false;
-          lastFailedSyncAt = new Date().toISOString();
-          consecutiveFailures += 1;
-          commitState();
+      if (!pipelineResult.success) {
+        // A pipeline stage failed, or an invalid stage was encountered.
+        // We rollback to atomic snapshot, then log the failure.
+        rollbackSync();
+        
+        // Record failure
+        currentState = SyncState.STOPPED;
+        isRunning = false;
+        lastFailedSyncAt = new Date().toISOString();
+        consecutiveFailures += 1;
+        commitState();
 
-          return freezeResult({
-            success: false,
-            state: currentState,
-            error: `Sync Pipeline failed at stage: ${stage.name}. ${stageError.message || String(stageError)}`,
-            errorCode: SyncErrorCode.PIPELINE_STAGE_FAILED
-          });
-        }
+        return freezeResult({
+          success: false,
+          state: currentState,
+          error: pipelineResult.error?.message || 'Unknown pipeline failure',
+          errorCode: SyncErrorCode.PIPELINE_STAGE_FAILED
+        });
       }
 
       // Success Behaviour
@@ -228,8 +243,8 @@ export const SyncEngine = {
       isRunning = false;
       lastSuccessfulSyncAt = new Date().toISOString();
       lastSyncDuration = new Date().getTime() - new Date(lastStartedAt).getTime();
-      itemsUploaded = totalUploaded;
-      itemsRemaining = totalRemaining;
+      itemsUploaded = pipelineResult.totalUploaded;
+      itemsRemaining = pipelineResult.totalRemaining;
       consecutiveFailures = 0;
       commitState();
 
@@ -238,6 +253,7 @@ export const SyncEngine = {
         state: currentState
       });
     } catch (error: any) {
+      // Unexpected exceptions
       rollbackSync();
       return freezeResult({
         success: false,

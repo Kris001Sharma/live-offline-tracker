@@ -614,3 +614,14 @@ Strengthen the Attendance Engine through configuration validation, robust rollba
 - **runtime metrics**: Verify upon successful completion that `itemsUploaded`, `itemsRemaining`, `lastSuccessfulSyncAt`, and `lastSyncDuration` are correctly calculated and preserved.
 - **rollback behaviour**: Verify that unexpected failures trigger `rollbackSync()` to restore the previously valid metrics and state.
 - **immutable outputs**: Ensure objects returned from `start()`, `stop()`, and `status()` remain deeply frozen.
+
+### Slice 8C-A — Upload Pipeline Hardening
+- **initialize() idempotency**: Verify `initialize()` safely resets the engine state via `clearInternal()`.
+- **unified clearInternal()**: Verify all initialization and partial resets funnel through the single `clearInternal()` reset path.
+- **immutable upload pipeline**: Verify that `UPLOAD_PIPELINE` is immutable (via `deepCloneAndFreeze`) and pipeline stage order is deterministic.
+- **atomic rollback**: Throw a mock error deep within the orchestrator loop and verify `rollbackSync()` returns all runtime metrics (including start times, items count, and previous module) to their original snapshot values.
+- **defensive stage validation**: Corrupt the `UPLOAD_PIPELINE` artificially and verify `start()` rejects it gracefully with `PIPELINE_STAGE_FAILED` and halts.
+- **defensive status()**: Provoke a throw within the `status()` getter and verify it falls back to a deeply frozen `DEFAULT_SYNC_STATUS`.
+- **deep immutability**: Verify `status()`, `start()`, and `stop()` return deeply frozen objects.
+- **single execution path**: Verify there is a single pipeline execution method (`executePipeline()`).
+- **architectural ownership**: Confirm comments correctly delineate SyncEngine's role strictly to orchestration.
