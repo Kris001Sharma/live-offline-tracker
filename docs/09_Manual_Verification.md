@@ -605,3 +605,12 @@ Strengthen the Attendance Engine through configuration validation, robust rollba
 - **defensive status()**: Call `status()` under unexpected internal conditions and verify it falls back to a frozen `DEFAULT_CONNECTIVITY_STATUS` rather than throwing.
 - **defensive isOnline()**: Verify `isOnline()` returns the boolean value without throwing, falling back to false on unexpected errors.
 - **immutable outputs**: Verify the objects returned from `startMonitoring()`, `stopMonitoring()`, and `status()` are deeply frozen (`Object.isFrozen` returns `true`).
+
+### Slice 8C — Upload Pipeline
+- **offline short-circuit**: Verify `start()` returns an `OFFLINE` status immediately when `ConnectivityEngine.isOnline()` is false, without initiating any uploads.
+- **upload ordering**: Verify the orchestration pipeline runs in the deterministic order: Trusted Device -> Attendance -> Tracking.
+- **sequential execution**: Confirm the pipeline awaits each stage fully before proceeding to the next.
+- **pipeline stopping on failure**: Simulate an error in one stage and verify the pipeline halts immediately, skips subsequent stages, and correctly returns `PIPELINE_STAGE_FAILED`.
+- **runtime metrics**: Verify upon successful completion that `itemsUploaded`, `itemsRemaining`, `lastSuccessfulSyncAt`, and `lastSyncDuration` are correctly calculated and preserved.
+- **rollback behaviour**: Verify that unexpected failures trigger `rollbackSync()` to restore the previously valid metrics and state.
+- **immutable outputs**: Ensure objects returned from `start()`, `stop()`, and `status()` remain deeply frozen.

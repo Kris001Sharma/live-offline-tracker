@@ -1,3 +1,9 @@
+import { ConnectivityEngine } from '../connectivity';
+import { 
+  TrustedDeviceRepository, 
+  AttendanceRepository, 
+  EventRepository 
+} from '../repositories';
 import { 
   SyncState, 
   SyncStatus, 
@@ -12,14 +18,11 @@ import { DEFAULT_SYNC_STATUS } from './sync.constants';
  * Architectural Responsibilities:
  * - Sync Engine owns synchronization orchestration only.
  * - Upload logic belongs to later slices.
- * - Connectivity monitoring belongs to later slices.
- * - Repository interaction and SQLite belong to later slices.
- * - Authentication integration belongs to later slices.
+ * - Retry belongs to Slice 8D.
+ * - Conflict handling belongs to Slice 8E.
+ * - Scheduling belongs to future phases.
  */
 
-/**
- * Deep clones and deep freezes an object recursively to ensure immutability.
- */
 function deepCloneAndFreeze<T>(obj: T): T {
   if (obj === null || typeof obj !== 'object') {
     return obj;
@@ -50,6 +53,12 @@ let lastStartedAt: string | undefined;
 let lastStoppedAt: string | undefined;
 let lastSyncAttemptAt: string | undefined;
 let consecutiveFailures: number = 0;
+let lastSuccessfulSyncAt: string | undefined;
+let lastFailedSyncAt: string | undefined;
+let lastSyncDuration: number | undefined;
+let lastSyncedModule: string | undefined;
+let itemsUploaded: number = 0;
+let itemsRemaining: number = 0;
 
 // Rollback state
 let previousState: SyncState = SyncState.STOPPED;
@@ -58,6 +67,12 @@ let previousLastStartedAt: string | undefined;
 let previousLastStoppedAt: string | undefined;
 let previousLastSyncAttemptAt: string | undefined;
 let previousConsecutiveFailures: number = 0;
+let previousLastSuccessfulSyncAt: string | undefined;
+let previousLastFailedSyncAt: string | undefined;
+let previousLastSyncDuration: number | undefined;
+let previousLastSyncedModule: string | undefined;
+let previousItemsUploaded: number = 0;
+let previousItemsRemaining: number = 0;
 
 function saveStateForRollback(): void {
   previousState = currentState;
@@ -66,6 +81,12 @@ function saveStateForRollback(): void {
   previousLastStoppedAt = lastStoppedAt;
   previousLastSyncAttemptAt = lastSyncAttemptAt;
   previousConsecutiveFailures = consecutiveFailures;
+  previousLastSuccessfulSyncAt = lastSuccessfulSyncAt;
+  previousLastFailedSyncAt = lastFailedSyncAt;
+  previousLastSyncDuration = lastSyncDuration;
+  previousLastSyncedModule = lastSyncedModule;
+  previousItemsUploaded = itemsUploaded;
+  previousItemsRemaining = itemsRemaining;
 }
 
 function rollbackSync(): void {
@@ -75,6 +96,12 @@ function rollbackSync(): void {
   lastStoppedAt = previousLastStoppedAt;
   lastSyncAttemptAt = previousLastSyncAttemptAt;
   consecutiveFailures = previousConsecutiveFailures;
+  lastSuccessfulSyncAt = previousLastSuccessfulSyncAt;
+  lastFailedSyncAt = previousLastFailedSyncAt;
+  lastSyncDuration = previousLastSyncDuration;
+  lastSyncedModule = previousLastSyncedModule;
+  itemsUploaded = previousItemsUploaded;
+  itemsRemaining = previousItemsRemaining;
 }
 
 function commitState(): void {
@@ -92,7 +119,46 @@ function clearInternal(): void {
   lastStoppedAt = undefined;
   lastSyncAttemptAt = undefined;
   consecutiveFailures = 0;
+  lastSuccessfulSyncAt = undefined;
+  lastFailedSyncAt = undefined;
+  lastSyncDuration = undefined;
+  lastSyncedModule = undefined;
+  itemsUploaded = 0;
+  itemsRemaining = 0;
 }
+
+type SyncStage = {
+  name: string;
+  execute: () => Promise<{ uploaded: number; remaining: number }>;
+};
+
+const UPLOAD_PIPELINE: SyncStage[] = [
+  {
+    name: 'Trusted Device Registration',
+    execute: async () => {
+      // Determine what pending local records should be synchronized
+      const pending = await TrustedDeviceRepository.findPending();
+      // Actual upload implementation remains delegated to future slices
+      return { uploaded: 0, remaining: pending.length };
+    }
+  },
+  {
+    name: 'Attendance',
+    execute: async () => {
+      const pending = await AttendanceRepository.findPending();
+      // Actual upload implementation remains delegated to future slices
+      return { uploaded: 0, remaining: pending.length };
+    }
+  },
+  {
+    name: 'Tracking Events',
+    execute: async () => {
+      const pending = await EventRepository.getUnsyncedEvents();
+      // Actual upload implementation remains delegated to future slices
+      return { uploaded: 0, remaining: pending.length };
+    }
+  }
+];
 
 export const SyncEngine = {
   initialize(): void {
@@ -110,15 +176,61 @@ export const SyncEngine = {
       });
     }
 
+    // Offline short-circuit
+    if (!ConnectivityEngine.isOnline()) {
+      return freezeResult({
+        success: false,
+        state: currentState,
+        error: 'Sync Engine: Cannot start while offline',
+        errorCode: SyncErrorCode.OFFLINE
+      });
+    }
+
     saveStateForRollback();
     currentState = SyncState.STARTING;
+    lastSyncAttemptAt = new Date().toISOString();
     
     try {
-      // Future slices will inject actual start logic here
-      
       currentState = SyncState.RUNNING;
       isRunning = true;
       lastStartedAt = new Date().toISOString();
+      commitState();
+
+      let totalUploaded = 0;
+      let totalRemaining = 0;
+
+      // Sequential deterministic upload order
+      for (const stage of UPLOAD_PIPELINE) {
+        lastSyncedModule = stage.name;
+        try {
+          const result = await stage.execute();
+          totalUploaded += result.uploaded;
+          totalRemaining += result.remaining;
+        } catch (stageError: any) {
+          // Stop the pipeline immediately on failure
+          currentState = SyncState.STOPPED;
+          isRunning = false;
+          lastFailedSyncAt = new Date().toISOString();
+          consecutiveFailures += 1;
+          commitState();
+
+          return freezeResult({
+            success: false,
+            state: currentState,
+            error: `Sync Pipeline failed at stage: ${stage.name}. ${stageError.message || String(stageError)}`,
+            errorCode: SyncErrorCode.PIPELINE_STAGE_FAILED
+          });
+        }
+      }
+
+      // Success Behaviour
+      currentState = SyncState.STOPPED;
+      isRunning = false;
+      lastSuccessfulSyncAt = new Date().toISOString();
+      lastSyncDuration = new Date().getTime() - new Date(lastStartedAt).getTime();
+      itemsUploaded = totalUploaded;
+      itemsRemaining = totalRemaining;
+      consecutiveFailures = 0;
       commitState();
 
       return freezeResult({
@@ -180,7 +292,13 @@ export const SyncEngine = {
         lastStartedAt,
         lastStoppedAt,
         lastSyncAttemptAt,
-        consecutiveFailures
+        consecutiveFailures,
+        lastSuccessfulSyncAt,
+        lastFailedSyncAt,
+        lastSyncDuration,
+        lastSyncedModule,
+        itemsUploaded,
+        itemsRemaining
       });
     } catch (e) {
       return deepCloneAndFreeze({ ...DEFAULT_SYNC_STATUS });

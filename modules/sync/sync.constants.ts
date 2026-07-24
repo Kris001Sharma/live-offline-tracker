@@ -5,5 +5,7 @@ export const SYNC_ENGINE_VERSION = '1.0.0';
 export const DEFAULT_SYNC_STATUS: SyncStatus = Object.freeze({
   state: SyncState.STOPPED,
   isRunning: false,
-  consecutiveFailures: 0
+  consecutiveFailures: 0,
+  itemsUploaded: 0,
+  itemsRemaining: 0
 });

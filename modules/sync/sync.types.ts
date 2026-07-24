@@ -7,6 +7,8 @@ export enum SyncState {
 
 export enum SyncErrorCode {
   INVALID_LIFECYCLE_TRANSITION = 'INVALID_LIFECYCLE_TRANSITION',
+  OFFLINE = 'OFFLINE',
+  PIPELINE_STAGE_FAILED = 'PIPELINE_STAGE_FAILED',
   UNKNOWN_ERROR = 'UNKNOWN_ERROR'
 }
 
@@ -17,6 +19,12 @@ export interface SyncStatus {
   readonly lastStoppedAt?: string;
   readonly lastSyncAttemptAt?: string;
   readonly consecutiveFailures: number;
+  readonly lastSuccessfulSyncAt?: string;
+  readonly lastFailedSyncAt?: string;
+  readonly lastSyncDuration?: number;
+  readonly lastSyncedModule?: string;
+  readonly itemsUploaded: number;
+  readonly itemsRemaining: number;
 }
 
 export interface SyncResult {
