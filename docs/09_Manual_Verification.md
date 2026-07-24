@@ -634,3 +634,13 @@ Strengthen the Attendance Engine through configuration validation, robust rollba
 - **immutable retry metrics**: Verify that `status()` returns deeply frozen metrics, including retry fields.
 - **rollback restoring retry state**: Throw an unexpected exception deep inside `start()` and verify that `rollbackSync()` perfectly restores retry metrics to their previous pre-execution snapshot.
 - **deterministic failure classification**: Confirm failures strictly map to explicit classifications like `PIPELINE_STAGE_FAILED`, `OFFLINE`, and `MAX_RETRIES_EXCEEDED`.
+
+### Slice 8E — Conflict Handling
+- **identical records**: Verify `evaluateConflict` returns `hasConflict: false` and `policy: SKIP` for identical local and remote timestamps.
+- **newer local record**: Verify `evaluateConflict` returns `hasConflict: true` and `policy: LOCAL_WINS` when local timestamp is newer.
+- **newer remote record**: Verify `evaluateConflict` returns `hasConflict: true` and `policy: REMOTE_WINS` when remote timestamp is newer.
+- **missing local record**: Verify `evaluateConflict` returns `hasConflict: false` and `policy: REMOTE_WINS` when local timestamp is missing but remote exists.
+- **missing remote record**: Verify `evaluateConflict` returns `hasConflict: false` and `policy: LOCAL_WINS` when remote timestamp is missing but local exists.
+- **deterministic policy selection**: Confirm the evaluator never returns ambiguous decisions or relies on external side effects.
+- **immutable conflict objects**: Verify `evaluateConflict` returns deeply frozen `SyncConflictResult` objects.
+- **rollback on unexpected exceptions**: (Assuming future integrations rely on rollback) Confirm that the evaluator does not mutate Sync Engine runtime state and failures are rolled back properly during pipeline orchestration.

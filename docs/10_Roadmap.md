@@ -104,7 +104,7 @@ This document outlines the milestones, feature releases, and chronological plan 
 | **8C-A** | Upload Pipeline Hardening | ✅ COMPLETED |
 | **8D** | Retry Strategy | ✅ COMPLETED |
 
-| **8E** | Conflict Handling | ⬜ SCHEDULED |
+| **8E** | Conflict Handling | ✅ COMPLETED |
 | **8F** | End-to-End Validation | ⬜ SCHEDULED |
 
 ---

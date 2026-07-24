@@ -13,6 +13,21 @@ export enum SyncErrorCode {
   UNKNOWN_ERROR = 'UNKNOWN_ERROR'
 }
 
+export enum ConflictPolicy {
+  LOCAL_WINS = 'LOCAL_WINS',
+  REMOTE_WINS = 'REMOTE_WINS',
+  MANUAL_REVIEW = 'MANUAL_REVIEW',
+  SKIP = 'SKIP'
+}
+
+export interface SyncConflictResult {
+  readonly hasConflict: boolean;
+  readonly policy: ConflictPolicy;
+  readonly reason: string;
+  readonly localVersion?: string;
+  readonly remoteVersion?: string;
+}
+
 export interface SyncStatus {
   readonly state: SyncState;
   readonly isRunning: boolean;

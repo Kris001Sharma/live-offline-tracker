@@ -8,7 +8,9 @@ import {
   SyncState, 
   SyncStatus, 
   SyncResult, 
-  SyncErrorCode 
+  SyncErrorCode,
+  ConflictPolicy,
+  SyncConflictResult
 } from './sync.types';
 import { 
   DEFAULT_SYNC_STATUS, 
@@ -157,6 +159,83 @@ function clearInternal(): void {
   lastRetryReason = undefined;
 }
 
+
+/**
+ * Deterministic Conflict Evaluator
+ * Evaluates local and remote versions of the same logical entity and returns a deterministic decision.
+ * Does NOT execute synchronization.
+ */
+function evaluateConflict(
+  localTimestamp: string | null | undefined,
+  remoteTimestamp: string | null | undefined
+): SyncConflictResult {
+  if (!localTimestamp && !remoteTimestamp) {
+    return deepCloneAndFreeze({
+      hasConflict: false,
+      policy: ConflictPolicy.SKIP,
+      reason: 'Both local and remote versions are missing.'
+    });
+  }
+
+  if (localTimestamp && !remoteTimestamp) {
+    return deepCloneAndFreeze({
+      hasConflict: false,
+      policy: ConflictPolicy.LOCAL_WINS,
+      reason: 'Remote version is missing.',
+      localVersion: localTimestamp
+    });
+  }
+
+  if (!localTimestamp && remoteTimestamp) {
+    return deepCloneAndFreeze({
+      hasConflict: false,
+      policy: ConflictPolicy.REMOTE_WINS,
+      reason: 'Local version is missing.',
+      remoteVersion: remoteTimestamp
+    });
+  }
+
+  if (localTimestamp === remoteTimestamp) {
+    return deepCloneAndFreeze({
+      hasConflict: false,
+      policy: ConflictPolicy.SKIP,
+      reason: 'Local and remote versions are identical.',
+      localVersion: localTimestamp as string,
+      remoteVersion: remoteTimestamp as string
+    });
+  }
+
+  const localDate = new Date(localTimestamp as string);
+  const remoteDate = new Date(remoteTimestamp as string);
+
+  if (localDate.getTime() > remoteDate.getTime()) {
+    return deepCloneAndFreeze({
+      hasConflict: true,
+      policy: ConflictPolicy.LOCAL_WINS,
+      reason: 'Local version is newer than remote version.',
+      localVersion: localTimestamp as string,
+      remoteVersion: remoteTimestamp as string
+    });
+  } else if (localDate.getTime() < remoteDate.getTime()) {
+    return deepCloneAndFreeze({
+      hasConflict: true,
+      policy: ConflictPolicy.REMOTE_WINS,
+      reason: 'Remote version is newer than local version.',
+      localVersion: localTimestamp as string,
+      remoteVersion: remoteTimestamp as string
+    });
+  }
+
+  // Fallback to manual review in unexpected scenarios
+  return deepCloneAndFreeze({
+    hasConflict: true,
+    policy: ConflictPolicy.MANUAL_REVIEW,
+    reason: 'Unable to deterministically resolve conflict.',
+    localVersion: localTimestamp as string,
+    remoteVersion: remoteTimestamp as string
+  });
+}
+
 type SyncStage = {
   name: string;
   execute: () => Promise<{ uploaded: number; remaining: number }>;
@@ -209,6 +288,7 @@ async function executePipeline(): Promise<{ success: boolean, totalUploaded: num
 }
 
 export const SyncEngine = {
+  evaluateConflict,
   initialize(): void {
     clearInternal();
     saveStateForRollback();
