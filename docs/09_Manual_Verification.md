@@ -657,3 +657,10 @@ Strengthen the Attendance Engine through configuration validation, robust rollba
 - **immutable outputs**: Confirm all methods returning `SyncStatus`, `SyncResult`, and `SyncConflictResult` use deep cloning and freezing.
 - **dependency validation**: Confirm that Sync Engine solely orchestrates and relies strictly on Repositories for data without importing infrastructure components inappropriately.
 - **architecture ownership validation**: Confirm that conflict rules remain inside Sync Engine and are not leaked into repositories.
+
+### Slice 9A — Worker Repository Foundation
+- **Migration Execution**: Verify `migration_004_worker_schema` executes successfully, safely mapping legacy data and recreating the `workers` table with the new schema without violating foreign key constraints.
+- **CRUD operations**: Verify that `WorkerRepository.create()`, `WorkerRepository.update()`, and `WorkerRepository.delete()` correctly persist, modify, and remove worker records in SQLite.
+- **Worker lookup methods**: Verify `findById()`, `findByEmail()`, `findActive()`, and `exists()` return expected results based on stored state.
+- **Structured repository errors**: Purposely create a duplicate worker and verify that a structured `WorkerRepositoryError` with `WORKER_ALREADY_EXISTS` code is thrown.
+- **Immutable returned objects**: Verify that all `WorkerRecord` objects returned from the repository are deeply frozen and attempting to mutate them throws a runtime error.

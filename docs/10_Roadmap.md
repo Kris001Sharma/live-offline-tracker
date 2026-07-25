@@ -13,7 +13,7 @@ This document outlines the milestones, feature releases, and chronological plan 
 | **Phase 6** | Attendance | ✅ COMPLETED |
 | **Phase 7** | Identity & Authentication | ✅ COMPLETED |
 | **Phase 8** | Synchronization | ✅ COMPLETED |
-| **Phase 9** | Administration | ⏳ PLANNED |
+| **Phase 9** | Administration | IN PROGRESS 🔄 |
 | **Phase 10** | Application Shell & UI | ⏳ PLANNED |
 | **Phase 11** | Production Hardening | ⏳ PLANNED |
 | **Phase 12** | Deployment & Release | ⏳ PLANNED |
@@ -109,9 +109,15 @@ This document outlines the milestones, feature releases, and chronological plan 
 
 ---
 
-### Future Phases
+### Phase 9: Administration
+- **Status**: IN PROGRESS 🔄
+- **Scope**: Worker profiles, trusted device approvals, and administration capabilities.
 
-- **Phase 9**: Administration
+| Slice | Title | Status |
+| ----- | ----- | ------ |
+| **9A** | Worker Repository Foundation | ✅ COMPLETED |
+
+### Future Phases
 - **Phase 10**: Application Shell & UI
 - **Phase 11**: Production Hardening
 - **Phase 12**: Deployment & Release
