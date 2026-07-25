@@ -682,3 +682,12 @@ Strengthen the Attendance Engine through configuration validation, robust rollba
 - **Atomic refresh replacement**: Verify `refresh()` completely constructs and validates the new profile in memory before replacing `currentProfile`.
 - **Preservation of previous profile on refresh failure**: Artificially fail the construction during `refresh()` and confirm `currentProfile` remains unchanged and the engine reverts to `READY`.
 - **Immutable returned profile**: Attempt to mutate the result of `profile()` and confirm a TypeError is thrown.
+
+### Slice 9C — Worker Synchronization Foundation
+- **Idempotent initialization**: Verify `WorkerSyncEngine.initialize()` handles subsequent calls correctly, clearing prior state and setting provider cleanly.
+- **Lifecycle transition validation**: Confirm that valid state transitions (e.g., `IDLE` -> `SYNCING` -> `IDLE`) work and invalid attempts throw `WorkerSyncError` with `ALREADY_SYNCING`.
+- **Authenticated synchronization precondition**: Verify that invoking `sync()` while unauthenticated returns early with an `UNAUTHENTICATED` error code.
+- **Atomic synchronization behavior**: Validate that the entire batch of valid remote workers is processed sequentially and errors don't corrupt the synchronization metrics.
+- **Repository update verification**: Ensure synchronized records are correctly queried via `WorkerRepository` to trigger either `create()` or `update()`.
+- **Failure rollback behavior**: Artificially fail a provider fetch and verify that `consecutiveFailures` increments, state returns to `IDLE`, and the error is returned cleanly.
+- **Immutable status/results**: Attempt to mutate the returned `WorkerSyncStatus` or `WorkerSyncResult` and confirm an error is thrown due to deep freezing.
