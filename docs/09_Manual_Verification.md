@@ -673,3 +673,12 @@ Strengthen the Attendance Engine through configuration validation, robust rollba
 - **Lifecycle correctness**: Confirm that valid state transitions (e.g. `EMPTY` -> `LOADING` -> `READY`) are enforced and invalid attempts (like refreshing from `EMPTY`) throw errors.
 - **Rollback behaviour**: Verify that if a failure occurs during `load()`, the internal state resets cleanly to `CLEARED`. 
 - **Immutable returned profile objects**: Attempt to mutate the returned `WorkerProfile` and confirm it throws an error due to deep freezing.
+
+### Slice 9B-A — Worker Profile Repository Integration Hardening
+- **Idempotent initialization**: Verify `WorkerProfileEngine.initialize()` delegates to `clearInternal()` before setting `initialized = true` avoiding state leakage.
+- **Single profile construction path**: Verify `load()` and `refresh()` successfully use the unified `buildWorkerProfile(record, currentWorker)` helper to construct profiles.
+- **Runtime validation in profile()**: Confirm `WorkerProfileEngine.profile()` returns `null` if the cached profile somehow fails validation before being returned.
+- **Defensive status() fallback**: Manually induce a deep-freeze error and verify `status()` returns the deep-frozen `DEFAULT_STATUS` fallback.
+- **Atomic refresh replacement**: Verify `refresh()` completely constructs and validates the new profile in memory before replacing `currentProfile`.
+- **Preservation of previous profile on refresh failure**: Artificially fail the construction during `refresh()` and confirm `currentProfile` remains unchanged and the engine reverts to `READY`.
+- **Immutable returned profile**: Attempt to mutate the result of `profile()` and confirm a TypeError is thrown.

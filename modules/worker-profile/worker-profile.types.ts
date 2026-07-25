@@ -28,7 +28,20 @@ export enum WorkerProfileErrorCode {
   NETWORK_ERROR = 'NETWORK_ERROR',
   PROFILE_NOT_FOUND = 'PROFILE_NOT_FOUND',
   LIFECYCLE_ERROR = 'LIFECYCLE_ERROR',
-  UNKNOWN_ERROR = 'UNKNOWN_ERROR'
+  UNKNOWN_ERROR = 'UNKNOWN_ERROR',
+  VALIDATION_ERROR = 'VALIDATION_ERROR',
+  UNAUTHENTICATED = 'UNAUTHENTICATED'
+}
+
+export class WorkerProfileError extends Error {
+  constructor(
+    public readonly code: WorkerProfileErrorCode,
+    message: string,
+    public readonly originalError?: unknown
+  ) {
+    super(message);
+    this.name = 'WorkerProfileError';
+  }
 }
 
 export interface WorkerProfileResult {
