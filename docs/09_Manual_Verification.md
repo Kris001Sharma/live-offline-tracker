@@ -710,3 +710,12 @@ Strengthen the Attendance Engine through configuration validation, robust rollba
 - **Atomic local persistence before notification**: Ensure that if `WorkerRepository.create()` throws an error, synchronization is never notified.
 - **Lifecycle transition validation**: Confirm that synchronization notification does not break the `IDLE -> PROCESSING -> IDLE` flow.
 - **Immutable status/results**: Confirm `WorkerAdminStatus` returned from `status()` containing the new sync properties cannot be mutated.
+
+### Slice 9F — Worker Administration Validation
+- **Worker creation validation**: Verify that passing a `workerId`, `email`, `displayName`, and `role` to `createWorker()` correctly uses centralized validation helpers.
+- **Worker update validation**: Check that partial payload updates correctly use central validation.
+- **Worker deactivation validation**: Confirm `deactivateWorker()` triggers standard payload validation to ensure safety.
+- **Invalid payload rejection**: Test providing empty names, invalid email formats, or missing identifiers to confirm that `WorkerAdminErrorCode.VALIDATION_ERROR` is returned safely without repository interaction.
+- **Structured error reporting**: Ensure validation errors return a consistent, descriptive message in the `error` property along with `WorkerAdminResult` structure.
+- **Lifecycle preservation**: Verify that failing a validation keeps the engine lifecycle at `IDLE`.
+- **Immutable status/results**: Confirm validation error results are deep-frozen and cannot be mutated.

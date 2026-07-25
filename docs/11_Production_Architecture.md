@@ -204,3 +204,20 @@ Every completed subsystem (Tracking, Attendance, Events, Repositories, Authentic
 ### Outstanding Risks & Next Steps
 - Cloud backend connectivity and HTTP synchronization implementations are deferred to the cloud integration phases.
 - **Phase 9 (Administration)** will introduce the required operational, reporting, and management layers.
+
+## Deferred Architectural Decisions
+
+The following improvements have been intentionally deferred because they belong to later implementation phases and introducing them earlier would violate slice boundaries.
+
+- Phase 11
+  - Durable synchronization outbox / background sync queue.
+  - Connectivity-triggered automatic synchronization.
+  - Background retry scheduling.
+
+- Future Infrastructure
+  - StorageEngine transaction() helper for multi-repository atomic operations.
+
+- Future Authentication
+  - Runtime role/token propagation after administrative role changes.
+
+This prevents the same recommendations from appearing repeatedly during future audits.

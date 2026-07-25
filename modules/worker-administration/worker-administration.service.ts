@@ -108,6 +108,103 @@ function mapRepositoryError(error: any): WorkerAdminErrorCode {
 }
 
 
+
+function validateState(): WorkerAdminResult<any> | null {
+  if (!initialized) {
+    return deepCloneAndFreeze({
+      success: false,
+      error: 'Engine not initialized',
+      errorCode: WorkerAdminErrorCode.UNINITIALIZED
+    });
+  }
+  if (lifecycle !== WorkerAdminLifecycle.IDLE) {
+    return deepCloneAndFreeze({
+      success: false,
+      error: 'Engine is already processing an operation',
+      errorCode: WorkerAdminErrorCode.ALREADY_PROCESSING
+    });
+  }
+  return null;
+}
+
+function validateWorkerId(workerId: string): WorkerAdminResult<any> | null {
+  if (!workerId || typeof workerId !== 'string' || workerId.trim() === '') {
+    return deepCloneAndFreeze({
+      success: false,
+      error: 'Validation failed: workerId is required and must be a valid string',
+      errorCode: WorkerAdminErrorCode.VALIDATION_ERROR
+    });
+  }
+  return null;
+}
+
+function validateEmail(email: string): boolean {
+  if (!email || typeof email !== 'string') return false;
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+function validateCreatePayload(payload: WorkerCreationPayload): WorkerAdminResult<any> | null {
+  const idError = validateWorkerId(payload.workerId);
+  if (idError) return idError;
+
+  if (!payload.email || !validateEmail(payload.email)) {
+    return deepCloneAndFreeze({
+      success: false,
+      error: 'Validation failed: email is required and must be a valid email format',
+      errorCode: WorkerAdminErrorCode.VALIDATION_ERROR
+    });
+  }
+
+  if (!payload.displayName || typeof payload.displayName !== 'string' || payload.displayName.trim() === '') {
+    return deepCloneAndFreeze({
+      success: false,
+      error: 'Validation failed: displayName is required and must not be empty',
+      errorCode: WorkerAdminErrorCode.VALIDATION_ERROR
+    });
+  }
+
+  if (!payload.role || typeof payload.role !== 'string' || payload.role.trim() === '') {
+    return deepCloneAndFreeze({
+      success: false,
+      error: 'Validation failed: role is required and must not be empty',
+      errorCode: WorkerAdminErrorCode.VALIDATION_ERROR
+    });
+  }
+
+  return null;
+}
+
+function validateUpdatePayload(workerId: string, payload: WorkerUpdatePayload): WorkerAdminResult<any> | null {
+  const idError = validateWorkerId(workerId);
+  if (idError) return idError;
+
+  if (payload.email !== undefined && !validateEmail(payload.email)) {
+    return deepCloneAndFreeze({
+      success: false,
+      error: 'Validation failed: email must be a valid email format if provided',
+      errorCode: WorkerAdminErrorCode.VALIDATION_ERROR
+    });
+  }
+
+  if (payload.displayName !== undefined && (typeof payload.displayName !== 'string' || payload.displayName.trim() === '')) {
+    return deepCloneAndFreeze({
+      success: false,
+      error: 'Validation failed: displayName cannot be empty if provided',
+      errorCode: WorkerAdminErrorCode.VALIDATION_ERROR
+    });
+  }
+
+  if (payload.role !== undefined && (typeof payload.role !== 'string' || payload.role.trim() === '')) {
+    return deepCloneAndFreeze({
+      success: false,
+      error: 'Validation failed: role cannot be empty if provided',
+      errorCode: WorkerAdminErrorCode.VALIDATION_ERROR
+    });
+  }
+
+  return null;
+}
+
 function notifySync(): void {
   pendingSync = true;
   lastSyncNotificationAt = new Date().toISOString();
@@ -130,29 +227,11 @@ export const WorkerAdminEngine = {
   },
 
   async createWorker(payload: WorkerCreationPayload): Promise<WorkerAdminResult<WorkerAdminRecord>> {
-    if (!initialized) {
-      return deepCloneAndFreeze({
-        success: false,
-        error: 'Engine not initialized',
-        errorCode: WorkerAdminErrorCode.UNINITIALIZED
-      });
-    }
-    
-    if (lifecycle !== WorkerAdminLifecycle.IDLE) {
-      return deepCloneAndFreeze({
-        success: false,
-        error: 'Engine is already processing an operation',
-        errorCode: WorkerAdminErrorCode.ALREADY_PROCESSING
-      });
-    }
+    const stateError = validateState();
+    if (stateError) return stateError;
 
-    if (!payload.workerId || !payload.email || !payload.displayName || !payload.role) {
-      return deepCloneAndFreeze({
-        success: false,
-        error: 'Validation failed: workerId, email, displayName, and role are required',
-        errorCode: WorkerAdminErrorCode.VALIDATION_ERROR
-      });
-    }
+    const validationError = validateCreatePayload(payload);
+    if (validationError) return validationError;
 
     recordOperationStart(WorkerAdminOperationType.CREATE);
 
@@ -185,29 +264,11 @@ export const WorkerAdminEngine = {
   },
 
   async updateWorker(workerId: string, payload: WorkerUpdatePayload): Promise<WorkerAdminResult<WorkerAdminRecord>> {
-    if (!initialized) {
-      return deepCloneAndFreeze({
-        success: false,
-        error: 'Engine not initialized',
-        errorCode: WorkerAdminErrorCode.UNINITIALIZED
-      });
-    }
+    const stateError = validateState();
+    if (stateError) return stateError;
 
-    if (lifecycle !== WorkerAdminLifecycle.IDLE) {
-      return deepCloneAndFreeze({
-        success: false,
-        error: 'Engine is already processing an operation',
-        errorCode: WorkerAdminErrorCode.ALREADY_PROCESSING
-      });
-    }
-
-    if (!workerId) {
-      return deepCloneAndFreeze({
-        success: false,
-        error: 'Validation failed: workerId is required',
-        errorCode: WorkerAdminErrorCode.VALIDATION_ERROR
-      });
-    }
+    const validationError = validateUpdatePayload(workerId, payload);
+    if (validationError) return validationError;
 
     recordOperationStart(WorkerAdminOperationType.UPDATE);
 
@@ -249,29 +310,11 @@ export const WorkerAdminEngine = {
   },
 
   async getWorker(workerId: string): Promise<WorkerAdminResult<WorkerAdminRecord>> {
-    if (!initialized) {
-      return deepCloneAndFreeze({
-        success: false,
-        error: 'Engine not initialized',
-        errorCode: WorkerAdminErrorCode.UNINITIALIZED
-      });
-    }
+    const stateError = validateState();
+    if (stateError) return stateError;
 
-    if (lifecycle !== WorkerAdminLifecycle.IDLE) {
-      return deepCloneAndFreeze({
-        success: false,
-        error: 'Engine is already processing an operation',
-        errorCode: WorkerAdminErrorCode.ALREADY_PROCESSING
-      });
-    }
-
-    if (!workerId) {
-      return deepCloneAndFreeze({
-        success: false,
-        error: 'Validation failed: workerId is required',
-        errorCode: WorkerAdminErrorCode.VALIDATION_ERROR
-      });
-    }
+    const idError = validateWorkerId(workerId);
+    if (idError) return idError;
 
     recordOperationStart(WorkerAdminOperationType.GET);
 
@@ -299,21 +342,8 @@ export const WorkerAdminEngine = {
   },
 
   async listWorkers(): Promise<WorkerAdminResult<WorkerAdminRecord[]>> {
-    if (!initialized) {
-      return deepCloneAndFreeze({
-        success: false,
-        error: 'Engine not initialized',
-        errorCode: WorkerAdminErrorCode.UNINITIALIZED
-      });
-    }
-
-    if (lifecycle !== WorkerAdminLifecycle.IDLE) {
-      return deepCloneAndFreeze({
-        success: false,
-        error: 'Engine is already processing an operation',
-        errorCode: WorkerAdminErrorCode.ALREADY_PROCESSING
-      });
-    }
+    const stateError = validateState();
+    if (stateError) return stateError;
 
     recordOperationStart(WorkerAdminOperationType.LIST);
 
