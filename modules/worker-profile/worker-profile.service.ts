@@ -1,7 +1,5 @@
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { AuthenticationEngine } from '../authentication';
-import { WorkerRole } from '../user-context';
-import { ConfigurationEngine } from '../configuration';
+import { WorkerRepository } from '../repositories';
+import { WorkerRole, UserContextEngine } from '../user-context';
 import { 
   WorkerProfile, 
   WorkerProfileStatus, 
@@ -27,7 +25,6 @@ let initialized = false;
 let lifecycle = WorkerProfileLifecycle.EMPTY;
 let currentProfile: WorkerProfile | null = null;
 let lastLoadedAt: string | undefined;
-let supabaseClient: SupabaseClient | null = null;
 
 const DEFAULT_STATUS = Object.freeze({
   initialized: false,
@@ -90,10 +87,6 @@ function validateProfile(profile: Partial<WorkerProfile>): profile is WorkerProf
 
 export const WorkerProfileEngine = {
   initialize(): void {
-    ConfigurationEngine.load();
-    const config = ConfigurationEngine.config.environment.supabase;
-    supabaseClient = createClient(config.url, config.anonKey);
-    
     initialized = true;
     lifecycle = WorkerProfileLifecycle.EMPTY;
     currentProfile = null;
@@ -112,27 +105,15 @@ export const WorkerProfileEngine = {
     transitionTo(WorkerProfileLifecycle.LOADING);
 
     try {
-      const authUser = AuthenticationEngine.currentUser();
-      if (!authUser) {
-        throw new Error('No authenticated user found');
+      const currentWorker = UserContextEngine.currentWorker();
+      
+      if (!currentWorker) {
+        throw new Error('No authenticated user context found');
       }
 
-      if (!supabaseClient) {
-        throw new Error('Supabase client not initialized');
-      }
+      const record = await WorkerRepository.findById(currentWorker.id);
 
-      // Temporary Supabase profile loading
-      const { data, error } = await supabaseClient
-        .from('workers')
-        .select('*')
-        .eq('id', authUser.id)
-        .single();
-
-      if (error) {
-        throw new Error(`Failed to load profile: ${error.message}`);
-      }
-
-      if (!data) {
+      if (!record) {
         return Object.freeze({
           success: false,
           error: 'Profile not found',
@@ -141,17 +122,17 @@ export const WorkerProfileEngine = {
       }
 
       const rawProfile: WorkerProfile = {
-        workerId: authUser.id,
-        employeeCode: data.employee_code || data.employeeCode || `EMP-${authUser.id.substring(0,6)}`,
-        displayName: data.display_name || data.displayName || authUser.email || 'Unknown',
-        email: authUser.email || data.email || '',
-        role: (data.role || 'WORKER') as WorkerRole,
-        organization: data.organization || 'Sapana',
-        active: data.active !== undefined ? Boolean(data.active) : true
+        workerId: record.workerId,
+        employeeCode: record.employeeCode || `EMP-${record.workerId.substring(0,6)}`,
+        displayName: record.displayName || currentWorker.displayName || 'Unknown',
+        email: record.email || currentWorker.email || '',
+        role: (record.role || 'WORKER') as WorkerRole,
+        organization: record.organization || 'Sapana',
+        active: record.active !== undefined ? Boolean(record.active) : true
       };
 
       if (!validateProfile(rawProfile)) {
-        throw new Error('Invalid profile data loaded from remote.');
+        throw new Error('Invalid profile data loaded from repository.');
       }
 
       currentProfile = deepCloneAndFreeze(rawProfile);
@@ -182,26 +163,15 @@ export const WorkerProfileEngine = {
     transitionTo(WorkerProfileLifecycle.REFRESHING);
 
     try {
-      const authUser = AuthenticationEngine.currentUser();
-      if (!authUser) {
-        throw new Error('No authenticated user found');
+      const currentWorker = UserContextEngine.currentWorker();
+      
+      if (!currentWorker) {
+        throw new Error('No authenticated user context found');
       }
 
-      if (!supabaseClient) {
-        throw new Error('Supabase client not initialized');
-      }
+      const record = await WorkerRepository.findById(currentWorker.id);
 
-      const { data, error } = await supabaseClient
-        .from('workers')
-        .select('*')
-        .eq('id', authUser.id)
-        .single();
-
-      if (error) {
-        throw new Error(`Failed to refresh profile: ${error.message}`);
-      }
-
-      if (!data) {
+      if (!record) {
         // Revert to READY, do not clear
         transitionTo(WorkerProfileLifecycle.READY);
         return Object.freeze({
@@ -212,17 +182,17 @@ export const WorkerProfileEngine = {
       }
 
       const rawProfile: WorkerProfile = {
-        workerId: authUser.id,
-        employeeCode: data.employee_code || data.employeeCode || `EMP-${authUser.id.substring(0,6)}`,
-        displayName: data.display_name || data.displayName || authUser.email || 'Unknown',
-        email: authUser.email || data.email || '',
-        role: (data.role || 'WORKER') as WorkerRole,
-        organization: data.organization || 'Sapana',
-        active: data.active !== undefined ? Boolean(data.active) : true
+        workerId: record.workerId,
+        employeeCode: record.employeeCode || `EMP-${record.workerId.substring(0,6)}`,
+        displayName: record.displayName || currentWorker.displayName || 'Unknown',
+        email: record.email || currentWorker.email || '',
+        role: (record.role || 'WORKER') as WorkerRole,
+        organization: record.organization || 'Sapana',
+        active: record.active !== undefined ? Boolean(record.active) : true
       };
 
       if (!validateProfile(rawProfile)) {
-         throw new Error('Invalid profile data loaded from remote.');
+         throw new Error('Invalid profile data loaded from repository.');
       }
 
       // Replace current profile only after validation

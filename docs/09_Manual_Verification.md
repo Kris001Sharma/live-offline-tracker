@@ -664,3 +664,12 @@ Strengthen the Attendance Engine through configuration validation, robust rollba
 - **Worker lookup methods**: Verify `findById()`, `findByEmail()`, `findActive()`, and `exists()` return expected results based on stored state.
 - **Structured repository errors**: Purposely create a duplicate worker and verify that a structured `WorkerRepositoryError` with `WORKER_ALREADY_EXISTS` code is thrown.
 - **Immutable returned objects**: Verify that all `WorkerRecord` objects returned from the repository are deeply frozen and attempting to mutate them throws a runtime error.
+
+### Slice 9B — Worker Profile Repository Integration
+- **Repository-backed profile loading**: Verify that `WorkerProfileEngine.load()` successfully queries the `WorkerRepository` and maps the `WorkerRecord` onto a `WorkerProfile` during the application initialization flow.
+- **Successful profile retrieval**: Ensure a fully populated valid profile smoothly transitions the engine to the `READY` state.
+- **Failed repository lookup**: Verify that if `WorkerRepository.findById` returns null, the engine transitions gracefully to `CLEARED` and an appropriate error is returned.
+- **Refresh behaviour**: Test that calling `WorkerProfileEngine.refresh()` correctly fetches the updated profile state from the repository without dropping the existing profile if the lookup fails, and successfully updates if a newer valid profile is retrieved.
+- **Lifecycle correctness**: Confirm that valid state transitions (e.g. `EMPTY` -> `LOADING` -> `READY`) are enforced and invalid attempts (like refreshing from `EMPTY`) throw errors.
+- **Rollback behaviour**: Verify that if a failure occurs during `load()`, the internal state resets cleanly to `CLEARED`. 
+- **Immutable returned profile objects**: Attempt to mutate the returned `WorkerProfile` and confirm it throws an error due to deep freezing.
