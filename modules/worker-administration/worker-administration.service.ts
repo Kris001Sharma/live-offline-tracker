@@ -1,4 +1,5 @@
 import { WorkerRepository, WorkerRepositoryErrorCode, WorkerRepositoryError } from '../repositories';
+import { WorkerSyncEngine } from '../worker-sync';
 import {
   WorkerAdminLifecycle,
   WorkerAdminStatus,
@@ -19,10 +20,16 @@ let lastFailedOperationAt: string | undefined;
 let lastOperationType: WorkerAdminOperationType | undefined;
 let consecutiveFailures = 0;
 
+let pendingSync = false;
+let lastSyncNotificationAt: string | undefined;
+
+
 const DEFAULT_STATUS = Object.freeze({
   initialized: false,
   lifecycle: WorkerAdminLifecycle.IDLE,
-  consecutiveFailures: 0
+  consecutiveFailures: 0,
+  pendingSync: false,
+  lastSyncNotificationAt: undefined
 });
 
 function deepCloneAndFreeze<T>(obj: T): T {
@@ -46,6 +53,8 @@ function clearInternal(): void {
   lastFailedOperationAt = undefined;
   lastOperationType = undefined;
   consecutiveFailures = 0;
+  pendingSync = false;
+  lastSyncNotificationAt = undefined;
 }
 
 function transitionTo(newLifecycle: WorkerAdminLifecycle): void {
@@ -98,6 +107,22 @@ function mapRepositoryError(error: any): WorkerAdminErrorCode {
   return WorkerAdminErrorCode.UNKNOWN_ERROR;
 }
 
+
+function notifySync(): void {
+  pendingSync = true;
+  lastSyncNotificationAt = new Date().toISOString();
+  
+  // Asynchronous fire-and-forget
+  Promise.resolve().then(async () => {
+    try {
+      await WorkerSyncEngine.sync();
+      // We don't change pendingSync on success or failure, because this is just metadata in Admin engine.
+    } catch (e) {
+      // Intentionally swallow errors to keep notification non-blocking
+    }
+  });
+}
+
 export const WorkerAdminEngine = {
   initialize(): void {
     clearInternal();
@@ -143,6 +168,7 @@ export const WorkerAdminEngine = {
       });
 
       recordOperationSuccess();
+      notifySync();
 
       return deepCloneAndFreeze({
         success: true,
@@ -202,6 +228,7 @@ export const WorkerAdminEngine = {
       } as any);
       
       recordOperationSuccess();
+      notifySync();
 
       return deepCloneAndFreeze({
         success: true,
@@ -322,7 +349,9 @@ export const WorkerAdminEngine = {
         lastSuccessfulOperationAt,
         lastFailedOperationAt,
         lastOperationType,
-        consecutiveFailures
+        consecutiveFailures,
+        pendingSync,
+        lastSyncNotificationAt
       });
     } catch {
       return DEFAULT_STATUS;

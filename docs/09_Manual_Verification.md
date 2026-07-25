@@ -701,3 +701,12 @@ Strengthen the Attendance Engine through configuration validation, robust rollba
 - **Worker retrieval and listing**: Verify that `getWorker()` returns specific records by ID, and `listWorkers()` returns all worker records.
 - **Atomic failure handling**: Artificially fail a repository operation and verify that `consecutiveFailures` increments, state returns to `IDLE`, and the error is correctly mapped.
 - **Immutable status/results**: Attempt to mutate the returned `WorkerAdminStatus` or `WorkerAdminResult` and confirm an error is thrown due to deep freezing.
+
+### Slice 9E — Worker Administration Synchronization
+- **Successful synchronization notification after create**: Verify that `createWorker()` sets `pendingSync = true` and updates `lastSyncNotificationAt`.
+- **Successful synchronization notification after update**: Verify that `updateWorker()` triggers synchronization and updates the metadata.
+- **Successful synchronization notification after deactivate**: Verify that `deactivateWorker()` correctly flags a pending sync.
+- **Non-blocking behaviour when synchronization is unavailable**: Artificially cause `WorkerSyncEngine.sync()` to fail and verify that `createWorker()` still returns success immediately.
+- **Atomic local persistence before notification**: Ensure that if `WorkerRepository.create()` throws an error, synchronization is never notified.
+- **Lifecycle transition validation**: Confirm that synchronization notification does not break the `IDLE -> PROCESSING -> IDLE` flow.
+- **Immutable status/results**: Confirm `WorkerAdminStatus` returned from `status()` containing the new sync properties cannot be mutated.

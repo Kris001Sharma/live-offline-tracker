@@ -40,6 +40,8 @@ export interface WorkerAdminStatus {
   readonly lastFailedOperationAt?: string;
   readonly lastOperationType?: WorkerAdminOperationType;
   readonly consecutiveFailures: number;
+  readonly pendingSync: boolean;
+  readonly lastSyncNotificationAt?: string;
 }
 
 export interface WorkerAdminResult<T = void> {
