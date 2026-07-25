@@ -691,3 +691,13 @@ Strengthen the Attendance Engine through configuration validation, robust rollba
 - **Repository update verification**: Ensure synchronized records are correctly queried via `WorkerRepository` to trigger either `create()` or `update()`.
 - **Failure rollback behavior**: Artificially fail a provider fetch and verify that `consecutiveFailures` increments, state returns to `IDLE`, and the error is returned cleanly.
 - **Immutable status/results**: Attempt to mutate the returned `WorkerSyncStatus` or `WorkerSyncResult` and confirm an error is thrown due to deep freezing.
+
+### Slice 9D — Worker Administration Foundation
+- **Idempotent initialization**: Verify `WorkerAdminEngine.initialize()` handles subsequent calls correctly, clearing prior state.
+- **Lifecycle transition validation**: Confirm that valid state transitions (e.g., `IDLE` -> `PROCESSING` -> `IDLE`) work and invalid attempts throw `WorkerAdminError` with `ALREADY_PROCESSING`.
+- **Worker creation**: Validate that `createWorker()` correctly inserts a record in `WorkerRepository` and updates the last successful operation timestamp.
+- **Worker update**: Validate that `updateWorker()` correctly updates an existing record without creating duplicates.
+- **Worker deactivation**: Ensure `deactivateWorker()` sets the `active` flag to false rather than performing a physical deletion.
+- **Worker retrieval and listing**: Verify that `getWorker()` returns specific records by ID, and `listWorkers()` returns all worker records.
+- **Atomic failure handling**: Artificially fail a repository operation and verify that `consecutiveFailures` increments, state returns to `IDLE`, and the error is correctly mapped.
+- **Immutable status/results**: Attempt to mutate the returned `WorkerAdminStatus` or `WorkerAdminResult` and confirm an error is thrown due to deep freezing.

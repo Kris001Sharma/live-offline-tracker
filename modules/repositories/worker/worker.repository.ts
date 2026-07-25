@@ -199,6 +199,18 @@ export const WorkerRepository = {
     }
   },
 
+  
+  async list(): Promise<WorkerRecord[]> {
+    try {
+      const result = await StorageEngine.execute(
+        `SELECT * FROM ${WORKER_TABLE_NAME}`
+      );
+      
+      return result.rows.map(mapRowToWorkerRecord);
+    } catch (error) {
+      handleStorageError(error);
+    }
+  },
   async findActive(): Promise<WorkerRecord[]> {
     try {
       const result = await StorageEngine.execute(
