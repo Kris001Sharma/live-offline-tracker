@@ -18,19 +18,29 @@ jobs:
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v1
 
-      # 3. Dynamic Extraction Engine: Convert TS migration string to native Postgres SQL
+      # 3. Enhanced Extraction Engine: Clean backticks and append proper PostgreSQL semicolons
       - name: Extract SQL from TypeScript
         run: |
           mkdir -p supabase/migrations
           
-          # This extract utility pulls everything inside your adapter.execute(`...`) wrappers
+          # 1. Extract only the lines inside the backticks of adapter.execute
           sed -n '/adapter.execute(`/,/`)/p' database/migrations/versions/001_initial_schema.ts \
           | sed 's/^[[:space:]]*await adapter.execute(`//g' \
           | sed 's/`);//g' \
-          > supabase/migrations/20260726000000_001_initial_schema.sql
-          
-          # Debug step: Show the clean generated SQL file in the logs
-          echo "=== Generated SQL Migration ==="
+          | sed 's/`//g' \
+          > temp_raw.sql
+
+          # 2. Inject semicolons at the end of statements if they are missing
+          # This makes sure PostgreSQL knows where one table ends and the next begins
+          awk '{
+            print $0;
+            if ($0 ~ /^[[:space:]]*\)$/ || $0 ~ /^CREATE INDEX/) {
+              print ";";
+            }
+          }' temp_raw.sql > supabase/migrations/20260726000000_001_initial_schema.sql
+
+          # Debug step: Show the clean generated SQL file in the logs to double-check structure
+          echo "=== Cleaned SQL Migration View ==="
           cat supabase/migrations/20260726000000_001_initial_schema.sql
 
       # 4. Link pipeline directly to your live Supabase cloud engine
@@ -39,9 +49,9 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: supabase link --project-ref ${{ secrets.SUPABASE_PROJECT_ID }}
 
-      # 5. Push extracted changes over to your production server
+      # 5. Push extracted changes automatically with non-interactive mode flag
       - name: Push Migrations
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
-        run: supabase db push
+        run: supabase db push --non-interactive
