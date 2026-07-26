@@ -28,7 +28,9 @@ function parseFeatureFlags(flagsStr?: string): Record<string, boolean> {
 export const Configuration = {
   load(): void {
     // In Vite environments, env variables are exposed on import.meta.env
-    const env = (import.meta as any).env || {};
+    const envMeta = (import.meta as any).env || {};
+    const envProc = typeof process !== "undefined" && process.env ? process.env : {};
+    const env = { ...envProc, ...envMeta };
     const supabaseUrl = env.VITE_SUPABASE_URL;
     const supabaseAnonKey = env.VITE_SUPABASE_ANON_KEY;
     
