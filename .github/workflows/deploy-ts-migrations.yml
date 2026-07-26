@@ -3,47 +3,45 @@ name: Deploy TS Migrations to Supabase
 on:
   push:
     branches:
-      - main # Triggers whenever AI Studio commits or merges code to main
+      - main # Runs whenever code is pushed to your main branch
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Pull down your project files
+      # 1. Download your repository source code
       - name: Checkout Source Code
         uses: actions/checkout@v4
 
-      # 2. Set up Node.js to compile and execute TypeScript
-      - name: Setup Node.js Environment
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm' # Use 'yarn' or 'pnpm' if your AI Studio uses them
-
-      # 3. Install your project dependencies (Drizzle, Prisma, ts-node, etc.)
-      - name: Install Project Dependencies
-        run: npm ci
-
-      # 4. Set up the official Supabase CLI runner tool
+      # 2. Set up the official Supabase CLI runner tool
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v1
 
-      # 5. Extract SQL from your TS folder structure and push to Supabase
-      - name: Link and Push Migrations
+      # 3. Dynamic Extraction Engine: Convert TS migration string to native Postgres SQL
+      - name: Extract SQL from TypeScript
+        run: |
+          mkdir -p supabase/migrations
+          
+          # This extract utility pulls everything inside your adapter.execute(`...`) wrappers
+          sed -n '/adapter.execute(`/,/`)/p' database/migrations/versions/001_initial_schema.ts \
+          | sed 's/^[[:space:]]*await adapter.execute(`//g' \
+          | sed 's/`);//g' \
+          > supabase/migrations/20260726000000_001_initial_schema.sql
+          
+          # Debug step: Show the clean generated SQL file in the logs
+          echo "=== Generated SQL Migration ==="
+          cat supabase/migrations/20260726000000_001_initial_schema.sql
+
+      # 4. Link pipeline directly to your live Supabase cloud engine
+      - name: Link Supabase Project
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: supabase link --project-ref ${{ secrets.SUPABASE_PROJECT_ID }}
+
+      # 5. Push extracted changes over to your production server
+      - name: Push Migrations
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
-        run: |
-          # Create the temporary migration path Supabase expects inside the runner environment
-          mkdir -p supabase/migrations
-          
-          # Generate/Convert your TypeScript definitions into raw SQL files.
-          # (Replace this next line with your exact ORM generation command if applicable, e.g., 'npx drizzle-kit generate')
-          npx ts-node -e "console.log('Compiling migrations...')" 
-          
-          # Link your pipeline execution directly to your live Supabase cloud engine
-          supabase link --project-ref ${{ secrets.SUPABASE_PROJECT_ID }}
-          
-          # Push the changes
-          supabase db push
+        run: supabase db push
