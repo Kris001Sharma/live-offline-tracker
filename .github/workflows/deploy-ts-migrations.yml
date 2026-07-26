@@ -18,29 +18,29 @@ jobs:
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v1
 
-      # 3. Enhanced Extraction Engine: Clean backticks and append proper PostgreSQL semicolons
+      # 3. Dynamic Extraction Engine: Clean backticks and format statements with semicolons
       - name: Extract SQL from TypeScript
         run: |
           mkdir -p supabase/migrations
           
-          # 1. Extract only the lines inside the backticks of adapter.execute
+          # Isolate only lines inside adapter.execute backticks and strip runtime noise
           sed -n '/adapter.execute(`/,/`)/p' database/migrations/versions/001_initial_schema.ts \
           | sed 's/^[[:space:]]*await adapter.execute(`//g' \
           | sed 's/`);//g' \
           | sed 's/`//g' \
           > temp_raw.sql
 
-          # 2. Inject semicolons at the end of statements if they are missing
-          # This makes sure PostgreSQL knows where one table ends and the next begins
-          awk '{
+          # Append valid PostgreSQL semicolons onto table and index declarations cleanly
+          awk '
+          {
             print $0;
             if ($0 ~ /^[[:space:]]*\)$/ || $0 ~ /^CREATE INDEX/) {
               print ";";
             }
           }' temp_raw.sql > supabase/migrations/20260726000000_001_initial_schema.sql
 
-          # Debug step: Show the clean generated SQL file in the logs to double-check structure
-          echo "=== Cleaned SQL Migration View ==="
+          # Debug step: Output file view to guarantee format looks correct in GitHub logs
+          echo "=== Formatted SQL Migration ==="
           cat supabase/migrations/20260726000000_001_initial_schema.sql
 
       # 4. Link pipeline directly to your live Supabase cloud engine
@@ -49,9 +49,9 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: supabase link --project-ref ${{ secrets.SUPABASE_PROJECT_ID }}
 
-      # 5. Push extracted changes automatically with non-interactive mode flag
+      # 5. Push extracted changes automatically to the remote database
       - name: Push Migrations
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
-        run: supabase db push --non-interactive
+        run: supabase db push
