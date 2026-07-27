@@ -8,7 +8,9 @@ This directory is the permanent home for every validation harness, regression te
 - `repository/`: Validation harnesses for offline-first local repositories (testing SQLite persistence, object mapping, and constraints).
 - `engine/`: Validation harnesses for business feature engines (testing state machines, orchestration, and domain logic).
 - `integration/`: Validation harnesses for cross-layer component interaction and orchestration flows (Quality Gate 5).
-- `synchronization/`: Validation harnesses for offline/online synchronization engines (planned).
+- `cloud/`: Live cloud integration validation against Supabase (Quality Gate 6).
+- `synchronization/`: Validation harnesses for offline/online synchronization engines (Quality Gate 6).
+- `operational/`: Operational validation framework executing end-to-end multi-step business scenarios (Slice OV-1: Sanity Execution, Slice OV-2: Authentication & Session Lifecycle, Slice OV-3: Attendance Operational Validation).
 - `production/`: Validation of production readiness (planned).
 
 ## Rules
@@ -24,7 +26,9 @@ This directory is the permanent home for every validation harness, regression te
 | `repository` | `WorkerRepository`, `AttendanceRepository`, `ShiftRepository`, `EventRepository`, `TrustedDeviceRepository` | `create`, `findById`, `append`, `findActiveSession`, `getActiveShift`, `closeShift`, `register`, `approve`, `reject` etc. | ✅ VERIFIED |
 | `engine` | `ConfigurationEngine`, `StorageEngine`, `AuthenticationEngine`, `UserContextEngine`, `WorkerAdminEngine`, `WorkerProfileEngine`, `WorkerSyncEngine` | `load`, `initialize`, `health`, `login`, `logout`, `status`, `currentWorker`, `createWorker`, `sync` | ✅ VERIFIED |
 | `integration` | Cross-module orchestration flows (`Configuration`→`Auth`, `Auth`→`UserContext`, `UserContext`→`WorkerProfile`, `WorkerAdmin`→`WorkerRepository`, `WorkerAdmin`→`WorkerSync`, `WorkerSync`→`WorkerRepository`, `Storage`→`Repository`) | `load`, `initialize`, `login`, `setCurrentWorker`, `load`, `createWorker`, `updateWorker`, `deactivateWorker`, `sync`, `append`, `createShift`, `appendEvent`, `register` | ✅ VERIFIED |
-| `synchronization` | `WorkerSyncEngine`, Supabase Backend mock | N/A (Planned) | ⏳ PENDING |
+| `cloud` | Live Supabase configuration, single-instance Auth client, AuthApiError translation, live table queries, seeded data verification, schema check, identity propagation, profile query, admin orchestration, live sync, SDK isolation audit, contract immutability | `load`, `initialize`, `login`, `restoreSession`, `logout`, `setCurrentWorker`, `createWorker`, `sync`, `status` | ✅ VERIFIED |
+| `synchronization` | `WorkerSyncEngine`, live Supabase Sync Provider, delta sync pipeline, error recovery, unauthenticated sync rejection, failure rollback | `initialize`, `sync`, `status` | ✅ VERIFIED |
+| `operational` | Operational Scenario Runner, Fixtures (Auth, Worker, Attendance, GPS, Shift, Device, Sync, Net, Time), Assertions, End-to-End Operational Workflow Scenarios | `setup`, `execute`, `verify`, `cleanup`, `runAll` | ✅ VERIFIED |
 | `production` | Build assets, Environment, Constraints | N/A (Planned) | ⏳ PENDING |
 
 ## Execution Flow & Module Registration

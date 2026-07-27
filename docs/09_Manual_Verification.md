@@ -904,3 +904,108 @@ Permanently record and verify that `AuthenticationEngine` is the sole module per
 ### Overall Result
 **QUALITY GATE 4**
 **PASS ✅**
+
+## Quality Gate 5: Integration Validation
+### Verification Execution (2026-07-27)
+1. **Cross-Layer Integration Harness**:
+   - Reusable validation harness constructed under `validation/integration/integration.validation.ts`.
+   - Validated interaction flows across all 7 engines, 5 repositories, and storage boundaries.
+2. **Flow Verification**:
+   - **Flow 1 (`ConfigurationEngine` → `AuthenticationEngine`)**: Verified parameter propagation and single-instance setup.
+   - **Flow 2 (`AuthenticationEngine` → `UserContextEngine`)**: Verified runtime identity propagation and payload failure handling.
+   - **Flow 3 (`UserContextEngine` → `WorkerProfileEngine`)**: Verified profile loading from `WorkerRepository` and deep immutability.
+   - **Flow 4 (`WorkerAdminEngine` → `WorkerRepository`)**: Verified CRUD orchestration and `WORKER_ALREADY_EXISTS` error mapping.
+   - **Flow 5 (`WorkerAdminEngine` → `WorkerSyncEngine`)**: Verified non-blocking `pendingSync` notifications.
+   - **Flow 6 (`WorkerSyncEngine` → `WorkerRepository`)**: Verified sync pipeline execution and unauthenticated rejection.
+   - **Flow 7 (`StorageEngine` → `Repository`)**: Verified query encapsulation and offline-first autonomous database execution.
+
+### Overall Result
+**QUALITY GATE 5**
+**PASS ✅**
+
+## Quality Gate 6: Cloud Integration Validation
+### Verification Execution (2026-07-27)
+1. **Live Cloud Validation Harness**:
+   - Live cloud validation harnesses constructed under `validation/cloud/cloud.validation.ts` and `validation/synchronization/synchronization.validation.ts`.
+   - Executed live against Supabase backend (`https://ejluwdwklieobrknnboh.supabase.co`).
+2. **Live Verification Results**:
+   - **Live Environment Configuration (`LIVE VERIFIED`)**: Verified `ConfigurationEngine` loads valid HTTPS `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`.
+   - **Live Auth Client Single Instance (`LIVE VERIFIED`)**: Verified `AuthenticationEngine` initializes single client and repeated calls are strictly idempotent.
+   - **Live Auth Error Translation (`LIVE VERIFIED`)**: Verified live `AuthApiError` mapping to strongly typed `AuthenticationErrorCode.INVALID_CREDENTIALS` and `NO_SESSION`.
+   - **Live Supabase Data Query (`LIVE VERIFIED`)**: Verified query access to live `workers`, `attendance`, `shifts`, `events`, and `trusted_devices` tables.
+   - **Live Seeded Reference Data (`LIVE VERIFIED`)**: Verified presence of `worker-admin`, `worker-active-a`, `worker-active-b`, and `worker-inactive`.
+   - **Live Schema Verification (`LIVE VERIFIED`)**: Verified deployed Supabase schema match application contracts with zero unapplied migrations.
+   - **Identity & User Context Flow (`LIVE VERIFIED`)**: Verified user context identity setting and contract deep-freezing.
+   - **Worker Profile Query (`LIVE VERIFIED`)**: Verified profile loading from repository and contract deep-freezing.
+   - **Worker Admin CRUD Orchestration (`LIVE VERIFIED`)**: Verified admin mutations persist to local SQLite repository and trigger pending sync notifications.
+   - **Worker Sync Delta Pipeline (`LIVE VERIFIED`)**: Verified delta synchronization from live Supabase into local SQLite repository.
+   - **Supabase SDK Isolation Audit (`LIVE VERIFIED`)**: Verified 0 modules outside `AuthenticationEngine` import `@supabase/supabase-js`.
+   - **Offline-First Isolation Audit (`LIVE VERIFIED`)**: Verified local persistence occurs exclusively through local Repositories.
+   - **Contract Immutability Audit (`LIVE VERIFIED`)**: Verified status objects across all 7 engines are deeply frozen (`Object.isFrozen`).
+
+### Overall Result
+**QUALITY GATE 6**
+**PASS ✅**
+
+## Quality Gate OV-1: Operational Validation Framework
+### Verification Execution (2026-07-27)
+1. **Operational Scenario Runner & Infrastructure**:
+   - Built sequential operational runner (`validation/operational/runner.ts`) and harness framework (`validation/operational/framework.ts`).
+   - Implemented domain fixtures (`AuthFixture`, `WorkerFixture`, `AttendanceFixture`, `GPSFixture`, `ShiftFixture`, `TrustedDeviceFixture`, `SyncFixture`, `ConnectivityFixture`, `TimeFixture`) and operational assertions (`assertEqual`, `assertTrue`, `assertFalse`, `assertExists`, `assertFrozen`, `assertLifecycle`, `assertRepositoryCount`, `assertDatabaseState`, `assertSupabaseState`).
+2. **Operational Sanity Workflow Scenario (`OV-SCENARIO-01`)**:
+   - Verified end-to-end multi-step business workflow: Storage initialization -> Identity setup -> Worker creation -> Active shift opening -> GPS Attendance check-in -> Repository verification -> Immutability audit -> Storage cleanup.
+
+### Overall Result
+**QUALITY GATE OV-1**
+**PASS ✅**
+
+## Quality Gate OV-2: Authentication & Session Operational Validation
+### Verification Execution (2026-07-27)
+1. **Authentication Operational Validation Scenario (`OV-SCENARIO-02`)**:
+   - Executed multi-stage authentication workflow against live Supabase backend using public `AuthenticationEngine` APIs.
+2. **7-Stage Workflow Verification**:
+   - **Stage 1 (Initialization)**: Verified `AuthenticationEngine.initialize()` sets state to `UNAUTHENTICATED`.
+   - **Stage 2 (Invalid Password)**: Verified login with invalid password fails with `AuthenticationErrorCode.INVALID_CREDENTIALS`, creates no session, and returns state to `UNAUTHENTICATED`.
+   - **Stage 3 (Seeded Account Login)**: Verified login with seeded account (`admin@sapana.local`) succeeds (`AuthenticationResult.success === true`), establishes session tokens, sets state to `AUTHENTICATED`, and exposes user identity.
+   - **Stage 4 (Session Restoration & State Safety)**: Verified state guard prevents invalid `restoreSession()` calls when already `AUTHENTICATED` while preserving active session user identity (`admin@sapana.local`).
+   - **Stage 5 (Status & Immutability)**: Verified `AuthenticationEngine.status()` returns a deeply frozen object (`Object.isFrozen`) and direct property mutation throws a runtime exception.
+   - **Stage 6 (Logout)**: Verified `AuthenticationEngine.logout()` revokes active session, clears current user, and returns state to `UNAUTHENTICATED`.
+   - **Stage 7 (Post-Logout Restore)**: Verified `restoreSession()` after logout returns `success === false` with `NO_SESSION` error code without runtime exceptions.
+3. **Execution Summary**:
+   - **Scenario ID**: `OV-SCENARIO-02`
+   - **Title**: `Authentication & Session Operational Validation Workflow`
+   - **Assertions Passed**: 30
+   - **Assertions Failed**: 0
+   - **Cloud Ownership**: `AuthenticationEngine` remains sole owner of Supabase client instantiation.
+
+### Overall Result
+**QUALITY GATE OV-2**
+**PASS ✅**
+
+## Quality Gate OV-3: Attendance Operational Validation
+### Verification Execution (2026-07-27)
+1. **Attendance Operational Validation Scenario (`OV-SCENARIO-03`)**:
+   - Executed multi-stage attendance business workflow using public `AttendanceEngine` and `AttendanceRepository` APIs.
+   - Operated strictly offline-first with local SQLite persistence and no Supabase sync interaction.
+2. **6-Stage Workflow Verification**:
+   - **Stage 1 (Initial Uncommitted State)**: Verified `AttendanceEngine.status().state === NOT_CHECKED_IN` and `AttendanceRepository.findActiveSession('SYSTEM')` returns `null`.
+   - **Stage 2 (Clock IN)**: Verified `AttendanceEngine.checkIn()` public API records check-in timestamp, updates state to `CHECKED_IN`, and persists 1 active session in `AttendanceRepository`.
+   - **Stage 3 (Attempt Duplicate Clock IN)**: Verified calling `checkIn()` from `CHECKED_IN` state throws structured lifecycle exception (`Cannot check in from state CHECKED_IN`), preserves `CHECKED_IN` state, and leaves repository uncorrupted with exactly 1 record.
+   - **Stage 4 (Retrieve Active Attendance)**: Verified `AttendanceRepository.findActiveSession('SYSTEM')` retrieves active session matching worker ID and engine check-in timestamp with `check_out_at === null`.
+   - **Stage 5 (Clock OUT)**: Verified `AttendanceEngine.checkOut()` public API records check-out timestamp, updates state to `CHECKED_OUT`, updates repository record with `check_out_at`, and leaves 0 active sessions in repository.
+   - **Stage 6 (Attempt Duplicate Clock OUT)**: Verified calling `checkOut()` from `CHECKED_OUT` state throws structured lifecycle exception (`Cannot check out from state CHECKED_OUT`), preserves `CHECKED_OUT` state, and preserves closed repository record intact.
+3. **Immutability & Verification**:
+   - Verified `AttendanceEngine.status()` is deeply frozen (`Object.isFrozen`).
+   - Verified timestamp sequence (`checkInAt <= checkOutAt`).
+   - Verified total attendance repository record count equals 1.
+   - Verified database state has 0 active attendance sessions.
+4. **Execution Summary**:
+   - **Scenario ID**: `OV-SCENARIO-03`
+   - **Title**: `Attendance Operational Validation Workflow`
+   - **Assertions Passed**: 32
+   - **Assertions Failed**: 0
+   - **Offline-First Rule**: Zero Supabase interaction, zero cloud sync triggered.
+
+### Overall Result
+**QUALITY GATE OV-3**
+**PASS ✅**

@@ -1,7 +1,7 @@
 import { spawn } from 'child_process';
 import * as path from 'path';
 
-const SUITES = ['repository', 'engine', 'integration']; // Extendable for 'synchronization', 'production'
+const SUITES = ['repository', 'engine', 'integration', 'cloud', 'synchronization', 'operational']; // Permanent validation suites
 const args = process.argv.slice(2);
 const target = args[0] || 'all';
 
