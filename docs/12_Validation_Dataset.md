@@ -1,75 +1,64 @@
-# 12 Validation Dataset
+# Validation Dataset
 
-## Overview
-
-This document outlines the permanent validation dataset used throughout the project's Quality Gates. It provides a deterministic, version-controlled foundation for validating application logic, synchronization, and infrastructure without relying on production data.
+This document outlines the permanent validation dataset used by the Validation Workspace to verify system correctness.
+The dataset is designed to be deterministic, isolated from production, and reused across all Quality Gates.
 
 ## 1. Baseline Dataset
 
-Permanent records that should never change. They form the reliable base for end-to-end validation.
+Permanent records that should never change.
 
-### Workers
+- **System Administrator (w-admin)**
+  - `workerId`: `w-admin`
+  - `email`: `admin@system.local`
+  - `displayName`: `System Administrator`
+  - `role`: `ADMIN`
+  - `active`: `true`
+  - **Purpose**: Verifies access controls and administrative operations.
 
-*   **Identifier:** `worker-admin`
-    *   **Purpose:** Validates administrative boundaries and elevated permissions.
-    *   **Role:** `ADMIN`
-    *   **Related Quality Gates:** QG2, QG3
-    *   **Expected Behaviour:** Grants full access to worker administration endpoints.
-*   **Identifier:** `worker-active-a`
-    *   **Purpose:** Standard active worker profile for primary application flows.
-    *   **Role:** `WORKER`
-    *   **Related Quality Gates:** QG2, QG3
-    *   **Expected Behaviour:** Can authenticate, register devices, and log attendance.
-*   **Identifier:** `worker-active-b`
-    *   **Purpose:** Secondary active worker to validate isolation and concurrency.
-    *   **Role:** `WORKER`
-    *   **Related Quality Gates:** QG2
-    *   **Expected Behaviour:** Must not see data from `worker-active-a`.
-*   **Identifier:** `worker-inactive`
-    *   **Purpose:** Validates deactivation flows and access denial.
-    *   **Role:** `WORKER`, active: `0`
-    *   **Related Quality Gates:** QG2
-    *   **Expected Behaviour:** Authentication or sync should be rejected or handled accordingly.
+- **Standard Worker (w-1)**
+  - `workerId`: `w-1`
+  - `email`: `worker.one@system.local`
+  - `displayName`: `Worker One`
+  - `role`: `WORKER`
+  - `active`: `true`
+  - **Purpose**: Verifies standard worker behavior, shift creation, and event logging.
 
-### Trusted Devices
+- **Trusted Device (d-admin-1)**
+  - `id`: `d-admin-1`
+  - `workerId`: `w-admin`
+  - `deviceId`: `dev-admin-123`
+  - `status`: `APPROVED`
+  - **Purpose**: Verifies authenticated sessions and offline functionality for trusted clients.
 
-*   **Identifier:** `device-trusted-1`
-    *   **Purpose:** Validates approved device binding.
-    *   **Worker:** `worker-active-a`
-    *   **Status:** `APPROVED`
-    *   **Related Quality Gates:** QG2
-    *   **Expected Behaviour:** System accepts attendance payloads from this device.
+## 2. Dynamic Scenarios
 
-### Attendance & Shifts
+Records representing state changes and application workflows.
 
-*   **Identifier:** `shift-baseline-1` & `attendance-baseline-1`
-    *   **Purpose:** Provides a known historical state for synchronization and reporting.
-    *   **Worker:** `worker-active-a`
-    *   **Related Quality Gates:** QG2
-    *   **Expected Behaviour:** Queries for historical shifts should return this data deterministically.
+- **Shift Lifecycle**
+  - Scenario 1: Open Shift. Represents a worker currently signed in. (Status: `ACTIVE`)
+  - Scenario 2: Closed Shift. Represents a worker who completed their day. (Status: `CLOSED`)
+  - **Purpose**: Validates active session resolution and historical queries.
 
-### Tracking Events
+- **Attendance Check-in**
+  - Scenario 1: Checked In. (check_out_at is NULL)
+  - Scenario 2: Checked Out. (check_out_at is populated)
+  - **Purpose**: Verifies time tracking and constraint logic.
 
-*   **Identifier:** `event-baseline-1`, `event-baseline-2`
-    *   **Purpose:** Simulates known GPS points tied to `shift-baseline-1`.
-    *   **Worker:** `worker-active-a`
-    *   **Related Quality Gates:** QG2
-    *   **Expected Behaviour:** Verifies event sorting and spatial logic.
+## 3. Edge Cases
 
-## 2. Transaction Dataset
+Records designed specifically to provoke failures or boundary conditions.
 
-Temporary records created during validation runs to verify mutations. They should be considered disposable.
+- **Duplicate Email Worker**
+  - `email`: `worker.one@system.local` (Reused)
+  - **Expected Behavior**: Throws `WorkerRepositoryError.WORKER_ALREADY_EXISTS`.
+  - **Purpose**: Verifies UNIQUE constraints on the database level.
 
-*   **Worker Create:** `worker-tx-create` (Validates `createWorker`)
-*   **Worker Update:** `worker-tx-update` (Validates `updateWorker`)
-*   **Worker Delete/Deactivate:** `worker-tx-deactivate` (Validates `deactivateWorker`)
+- **Inactive Worker**
+  - `workerId`: `w-inactive`
+  - `active`: `false`
+  - **Expected Behavior**: Excluded from active worker queries.
+  - **Purpose**: Verifies correct filtering in repository queries.
 
-## 3. Fault Dataset
-
-Records intentionally created to trigger and validate failure scenarios.
-
-*   **Duplicate Email:** Attempting to create a worker with `admin@sapana.local`.
-*   **Invalid Worker:** Orphaned references or invalid enums.
-*   **Missing Foreign Key:** Creating attendance for a non-existent worker.
-
-This dataset ensures all infrastructure and feature engines fail deterministically when encountering bad data.
+- **Foreign Key Violation (Orphaned Shift/Device)**
+  - `workerId`: `non-existent-worker`
+  - **Expected Behavior**: Validates foreign key constraints (or logical validation if PRAGMA foreign_keys is off).

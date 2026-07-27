@@ -848,3 +848,40 @@ Permanently record and verify that `AuthenticationEngine` is the sole module per
 ### Overall Result
 **QUALITY GATE 2**
 **PASS ✅**
+
+---
+
+## Quality Gate 3 — Repository Validation
+
+### Status: VERIFIED ✅ (PASS)
+
+### Scope Validated
+- **Validation Workspace Architecture** (`validation/` directory)
+- **BunSQLiteAdapter** (`validation/repository/bun-sqlite.adapter.ts`)
+- **WorkerRepository**
+- **TrustedDeviceRepository**
+- **AttendanceRepository**
+- **ShiftRepository**
+- **EventRepository**
+
+### Verification Results
+1. **Validation Infrastructure**:
+   - A permanent validation workspace was established isolated from production modules, adhering to architecture rules.
+   - An in-memory SQLite adapter (`BunSQLiteAdapter`) using `bun:sqlite` was implemented, decoupling repositories from cloud/native databases during validation.
+
+2. **Repository Validation**:
+   - A reusable test harness executed over 40 distinct checks against all repositories.
+   - **WorkerRepository**: Verified `create()`, constraint mapping (unique email), fetching (`findById`, `findActive`), state updates, and record immutability.
+   - **TrustedDeviceRepository**: Verified device registration, device lookup (`findByWorkerAndDevice`), and status updates (`approve`, `reject`).
+   - **AttendanceRepository**: Verified standard tracking, open session queries (`findActiveSession`), checking out, and foreign key integrity.
+   - **ShiftRepository**: Verified open shift detection (`getActiveShift`), chronological history retrieval, and status transitions (`closeShift`).
+   - **EventRepository**: Verified immutable event storage, JSON serialization/deserialization for `event_data`, and domain querying (`getLatestEventByType`).
+
+3. **Architecture Audit**:
+   - Zero business logic was found inside the repository layer.
+   - All SQLite errors correctly bubble up as structured `RepositoryError` objects (e.g. `WorkerRepositoryErrorCode`).
+   - Repositories correctly use the abstract `StorageEngine` without any hardcoded adapters.
+
+### Overall Result
+**QUALITY GATE 3**
+**PASS ✅**

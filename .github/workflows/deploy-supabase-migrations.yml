@@ -1,4 +1,4 @@
-name: Deploy Supabase Migrations
+name: Deploy Database Migrations
 
 on:
   workflow_dispatch:
@@ -6,32 +6,35 @@ on:
   push:
     branches:
       - main
-
-permissions:
-  contents: read
+    paths:
+      - "supabase/migrations/**"
 
 jobs:
   deploy:
-    name: Deploy Database Migrations
+
     runs-on: ubuntu-latest
 
+    env:
+      SUPABASE_DISABLE_TELEMETRY: "1"
+
     steps:
+
       - name: Checkout Repository
         uses: actions/checkout@v4
 
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v1
         with:
-          version: latest
+          version: 2.39.2
 
       - name: Link Supabase Project
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: |
           supabase link \
-            --project-ref "${{ secrets.SUPABASE_PROJECT_ID }}"
+            --project-ref ${{ secrets.SUPABASE_PROJECT_ID }}
 
-      - name: Push Database Migrations
+      - name: Deploy Migrations
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
