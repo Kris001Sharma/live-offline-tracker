@@ -719,3 +719,132 @@ Strengthen the Attendance Engine through configuration validation, robust rollba
 - **Structured error reporting**: Ensure validation errors return a consistent, descriptive message in the `error` property along with `WorkerAdminResult` structure.
 - **Lifecycle preservation**: Verify that failing a validation keeps the engine lifecycle at `IDLE`.
 - **Immutable status/results**: Confirm validation error results are deep-frozen and cannot be mutated.
+
+---
+
+## Validation V1B-1 — Authentication Engine Ownership & Supabase Client Isolation
+
+### Status: VERIFIED ✅
+
+### Purpose
+
+Permanently record and verify that `AuthenticationEngine` is the sole module permitted to instantiate and own the `SupabaseClient`, enforcing strict client isolation and preventing direct Supabase client construction or import across Repository modules, Feature Engines, Synchronization Engines, and UI components.
+
+### Verification Checks
+
+1. **Supabase Client Ownership Verification**:
+   - Verify that `AuthenticationEngine` (`modules/authentication/authentication.service.ts`) is the only module in the codebase that imports `@supabase/supabase-js` and instantiates `createClient`.
+   - Confirm that no Repository modules (`*repository.ts`), Feature Engines, Synchronization Engines (`modules/sync`), or UI components directly import `@supabase/supabase-js` or construct Supabase clients.
+
+2. **Configuration Engine Environment Loading**:
+   - Verify `ConfigurationEngine.load()` validates `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` from the environment.
+   - Confirm missing environment variables produce structured initialization errors rather than unhandled client exceptions.
+
+3. **Idempotent Client Initialization**:
+   - Call `AuthenticationEngine.initialize()` multiple times consecutively.
+   - Confirm state is safely initialized without duplicating Supabase client instances or auth listeners.
+
+4. **Cloud Interaction Boundary Enforcement**:
+   - Verify all authentication and cloud identity operations route through `AuthenticationEngine` methods (`login`, `logout`, `restoreSession`, `currentUser`, `status`).
+   - Confirm that future cloud communications are constrained to pass through `AuthenticationEngine` or an explicitly approved future Cloud API layer.
+
+5. **Defensive Session Restoration & Exception Translation**:
+   - Execute `restoreSession()` under valid, expired, and offline scenarios.
+   - Confirm that network or SDK errors are caught and translated into structured `AuthenticationResult` objects without throwing raw SDK errors.
+
+### Expected Outcome
+
+- `AuthenticationEngine` strictly owns the single `SupabaseClient` instance.
+- No other module directly accesses or instantiates `@supabase/supabase-js`.
+- Configuration loading fails fast on missing credentials.
+- `AuthenticationEngine.initialize()` is completely idempotent.
+- All session restoration and authentication attempts produce frozen, structured result objects without raw SDK crashes.
+
+
+---
+
+## Quality Gate 1 — Infrastructure & Authentication Baseline Validation
+
+### Status: VERIFIED ✅ (PASS)
+
+### Scope Validated
+
+- **Configuration Engine**
+- **Storage Engine**
+- **Authentication Engine**
+- **Supabase Integration**
+- **Project Architecture Boundaries**
+- **Build Integrity**
+
+### Verification Results
+
+1. **Configuration Engine Validation**:
+   - `ConfigurationEngine.load()` executes successfully when `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` are provided.
+   - Throws deterministic initialization errors when mandatory configuration values are missing, preventing silent failure.
+2. **Storage Engine Validation**:
+   - `StorageEngine.initialize()` handles adapter dependency injection cleanly.
+   - Idempotency is maintained across multiple initialization attempts without connection leakage.
+   - Standard execution of a trivial SQL query operates correctly through the provided adapter.
+3. **Authentication Infrastructure Validation**:
+   - `AuthenticationEngine` initializes perfectly with exactly one Supabase client instance.
+   - Repeated `initialize()` calls are idempotent.
+   - State mutations are restricted. `status()` objects are verified deeply immutable.
+   - `restoreSession()` correctly translates empty or unavailable sessions into structured offline/network `AuthenticationResult` errors rather than crashing.
+   - `logout()` reliably resets internal state to `UNAUTHENTICATED`.
+4. **Supabase Connectivity Validation**:
+   - The Supabase client establishes connections properly with the provided configuration.
+   - Auth endpoint handles mock connectivity properly, interpreting unreachable instances as network errors safely without breaking the engine lifecycle.
+5. **Architecture Audit**:
+   - Zero architecture violations detected.
+   - `AuthenticationEngine` remains the exclusive owner and importer of `@supabase/supabase-js`.
+   - Circular dependency analysis passes successfully.
+6. **Build Validation**:
+   - `npx tsc --noEmit` exits perfectly with **zero** TypeScript compilation errors.
+
+### Overall Result
+**QUALITY GATE 1**
+**PASS ✅**
+
+---
+
+## Quality Gate 2 — Validation Dataset Foundation
+
+### Status: VERIFIED ✅
+
+### Scope Validated
+
+- **Validation Dataset Specification** (`docs/12_Validation_Dataset.md`)
+- **Validation Dataset SQL Seed** (`supabase/seeds/validation_dataset.sql`)
+- **Dataset Integrity Validation** (Data inserted into Supabase)
+- **Architecture Audit**
+
+### Verification Results
+
+1. **Validation Dataset Specification**:
+   - `docs/12_Validation_Dataset.md` created with documented deterministic entities.
+   - Distinct sections created for Baseline Dataset, Transaction Dataset, and Fault Dataset.
+   - Defined identities (e.g., `worker-admin`, `worker-active-a`, `device-trusted-1`) to enable reliable End-to-End testing.
+
+2. **Validation Dataset SQL Seed**:
+   - `supabase/seeds/validation_dataset.sql` created successfully.
+   - Idempotent `UPSERT` logic implemented using `ON CONFLICT (...) DO UPDATE SET ...` for all seeds.
+   - Clean structural ordering preserves referential integrity (Workers -> Trusted Devices, Shifts -> Attendance, Events).
+
+3. **Dataset Integrity Validation**:
+   - Seed script successfully executed against the configured Supabase environment via REST endpoints.
+   - Data verified as inserted without violating schema constraints.
+   - Verified exact base counts:
+     - Workers: 4
+     - Trusted Devices: 1
+     - Shifts: 1
+     - Attendance: 1
+     - Events: 2
+
+4. **Architecture Audit**:
+   - Validation dataset isolated within `supabase/seeds`, distinctly separate from structural `supabase/migrations`.
+   - Application code remains cleanly decoupled from testing infrastructure. No domain logic references seeded identities directly.
+   - Complete re-creation of tests is supported without data conflict via deterministic `UPSERT`.
+
+### Overall Result
+**QUALITY GATE 2**
+**PASS ✅**

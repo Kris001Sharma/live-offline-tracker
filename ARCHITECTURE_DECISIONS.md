@@ -67,3 +67,11 @@ This document records the key architectural decisions made for the Sapana Live T
 - **Decision**: The tracking pipeline shall be decomposed into dedicated Engines, each owning exactly one responsibility. TrackingSession owns **when** location collection occurs, TrackingEngine owns **what** happens to each collected location, BackgroundExecution owns **where** the scheduler executes (foreground/background lifecycle), and TrackingHealth owns **observing** pipeline health. Engines may collaborate only through approved public APIs and shall not assume another Engine's responsibility.
 - **Reason**: Separating scheduling, orchestration, platform lifecycle, and diagnostics prevents responsibility leakage, preserves clear architectural boundaries, improves testability, and allows each component to evolve independently without impacting the remainder of the tracking pipeline.
 - **Status**: Approved
+
+---
+
+## ADR-010: Authentication Engine Supabase Client Ownership
+
+- **Decision**: `AuthenticationEngine` is the sole module permitted to instantiate and own the `SupabaseClient`.
+- **Reason**: Centralizing Supabase client creation inside `AuthenticationEngine` ensures single-instance token/session lifecycle management, eliminates duplicated connections, prevents credential leaks, and establishes a strict security boundary. Repository modules, Feature Engines, Synchronization Engines, and UI components are strictly prohibited from directly importing `@supabase/supabase-js` or instantiating Supabase clients. All future cloud interactions must occur through `AuthenticationEngine` (or a dedicated Cloud API layer introduced by a future architecture phase) and never bypass this boundary.
+- **Status**: Approved

@@ -117,6 +117,7 @@ Admin Dashboard
 - **Least Privilege**: Users and services operate with minimal necessary access rights.
 - **Offline-First Security**: Local data is encrypted at rest; tokens are stored in secure platform storage.
 - **Client Key Isolation**: The Supabase `Service Role Key` is strictly forbidden inside mobile or web clients; client access uses `Anon Key` with Row Level Security (RLS).
+- **Authentication Engine Supabase Client Ownership**: `AuthenticationEngine` is the sole module permitted to instantiate and own the `SupabaseClient`. Repository modules, Feature Engines, Synchronization Engines, and UI components are strictly prohibited from directly importing `@supabase/supabase-js` or constructing Supabase clients. All future cloud interactions must occur exclusively through `AuthenticationEngine` (or a dedicated Cloud API layer introduced by a future architecture phase).
 - **Transport Security**: HTTPS and TLS 1.3 for all network communication.
 - **Device Binding**: Only verified, registered devices can emit location and attendance events.
 - **Role-Based Authorization**: Strict authorization checks on backend endpoints and UI interfaces.

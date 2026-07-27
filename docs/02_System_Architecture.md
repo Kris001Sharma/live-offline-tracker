@@ -179,6 +179,12 @@ Platform
 Business Logic
 ```
 
+## Supabase Client Ownership Boundary
+
+- `AuthenticationEngine` is the sole module permitted to instantiate and own the `SupabaseClient`.
+- Repository modules, Feature Engines, Synchronization Engines, and UI components are strictly prohibited from directly importing `@supabase/supabase-js` or constructing Supabase clients.
+- All future cloud interactions must occur exclusively through `AuthenticationEngine` (or a dedicated Cloud API layer introduced by a future architecture phase), and never bypass this boundary.
+
 ---
 
 # Repository Structure
@@ -593,6 +599,7 @@ Architecture is considered correctly implemented when:
 - Features remain independent.
 - Engines are reusable.
 - Platform-specific code is isolated.
+- AuthenticationEngine is the sole module permitted to instantiate and own the SupabaseClient.
 
 ---
 

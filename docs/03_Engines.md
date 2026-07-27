@@ -175,6 +175,12 @@ Engine Internals
 
 ```
 
+## Authentication Engine Supabase Client Ownership Rule
+
+- `AuthenticationEngine` is the sole module permitted to instantiate and own the `SupabaseClient`.
+- Repository modules, Feature Engines, Synchronization Engines, and UI components are strictly prohibited from directly importing `@supabase/supabase-js` or constructing Supabase clients.
+- All future cloud interactions must occur exclusively through `AuthenticationEngine` (or a dedicated Cloud API layer introduced by a future architecture phase), and never bypass this boundary.
+
 ---
 
 # 1. Configuration Engine
@@ -676,3 +682,4 @@ An Engine is complete when:
 - No prohibited responsibilities exist.
 - The Engine remains independently testable.
 - No feature-specific business logic has been introduced.
+- Only AuthenticationEngine instantiates and owns the SupabaseClient instance.
