@@ -1009,3 +1009,59 @@ Permanently record and verify that `AuthenticationEngine` is the sole module per
 ### Overall Result
 **QUALITY GATE OV-3**
 **PASS ✅**
+
+## Quality Gate OV-4: GPS Operational Validation
+### Verification Execution (2026-07-27)
+1. **GPS Operational Validation Scenario (`OV-SCENARIO-04`)**:
+   - Executed independent GPS operational scenarios evaluating location conditions against domain rules and `LocationEvaluationEngine`.
+   - Performed completely in isolation from attendance workflows, tracking engines, synchronization pipelines, and remote databases.
+2. **7-Scenario Verification**:
+   - **Scenario A (Valid Location)**: Verified location at geofence center (13.7563, 100.5018) with accuracy 5.0m is accepted (`accepted === true`, reason `ACCEPTED`).
+   - **Scenario B (Outside Geofence)**: Verified location at (14.0, 101.0) (~60 km from geofence center) is rejected (`accepted === false`, reason `GEOFENCE_REJECTED`).
+   - **Scenario C (Poor GPS Accuracy)**: Verified location with accuracy 150.0m (> max 50m threshold) is rejected (`accepted === false`, reason `ACCURACY_REJECTED`).
+   - **Scenario D (Missing Coordinates)**: Verified reading with missing/NaN coordinates is rejected (`accepted === false`, reason `MISSING_COORDINATES`).
+   - **Scenario E (Stale Timestamp)**: Verified reading with timestamp preceding previous recorded timestamp is rejected (`accepted === false`, reason `STALE_TIMESTAMP`).
+   - **Scenario F (Impossible Coordinates)**: Verified reading with Latitude = 120.0 (> 90) is rejected (`accepted === false`, reason `IMPOSSIBLE_COORDINATES`).
+   - **Scenario G (Rapid GPS Jump)**: Verified consecutive readings representing 580 km movement in 2 seconds (> 150 m/s threshold) is rejected (`accepted === false`, reason `RAPID_JUMP_REJECTED`).
+3. **Verification & Isolation Audit**:
+   - Verified returned evaluation contract results are deeply frozen (`Object.isFrozen`).
+   - Verified `AttendanceRepository` remains completely untouched (record count = 0).
+   - Verified `LocationRepository` remains completely untouched (record count = 0).
+   - Verified database state has 0 active attendance sessions and 0 location records.
+   - Verified zero Supabase or remote network interaction occurred.
+4. **Execution Summary**:
+   - **Scenario ID**: `OV-SCENARIO-04`
+   - **Title**: `GPS Operational Validation`
+   - **Assertions Passed**: 25 (Scenario OV-4), 113 Total across suite
+   - **Assertions Failed**: 0
+   - **Runtime**: ~509ms
+
+### Overall Result
+**QUALITY GATE OV-4**
+**VERIFIED ✅**
+
+## Quality Gate OV-4A: GPS Operational Validation Hardening
+### Hardening & Verification Execution (2026-07-27)
+1. **Public API Defensive Validation**:
+   - Hardened `LocationEvaluationEngine.evaluate()` to own all input defensive validation natively:
+     - Finite number check and valid range checks for Latitude (`[-90, 90]`) and Longitude (`[-180, 180]`) returning `EvaluationReason.INVALID_COORDINATES`.
+     - Valid timestamp check and timestamp sequence check returning `EvaluationReason.INVALID_TIMESTAMP`.
+     - Rapid GPS jump / velocity check (`maxSpeedMps`, default 150 m/s ~ 540 km/h) returning `EvaluationReason.SPEED_REJECTED`.
+     - Request guard ensuring required objects exist.
+     - Deep immutability enforcement (`Object.freeze`) on all returned evaluation contracts.
+2. **Decoupling & Boundary Audit**:
+   - Refactored `OV-SCENARIO-04` (`ov4-gps.scenario.ts`) to eliminate local custom wrapper functions (`evaluateGPSReading`), manual speed calculation, and mathematical algorithm checks.
+   - Scenario interacts exclusively through the public API boundary `LocationEvaluationEngine.evaluate(request)`.
+   - Verified that the scenario tests business outcomes (`assertAccepted`, `assertRejected`, `reasons.includes(...)`) rather than internal implementation details or Haversine math.
+3. **Execution Summary**:
+   - **Scenario ID**: `OV-SCENARIO-04`
+   - **Title**: `GPS Operational Validation`
+   - **Assertions Passed**: 25 (Scenario OV-4), 113 Total across operational suite
+   - **Assertions Failed**: 0
+   - **TypeScript Compilation**: Clean (`npx tsc --noEmit` passed with 0 errors)
+   - **Runtime**: ~550ms
+
+### Overall Result
+**QUALITY GATE OV-4A**
+**VERIFIED ✅**
+

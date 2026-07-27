@@ -10,7 +10,7 @@ This directory is the permanent home for every validation harness, regression te
 - `integration/`: Validation harnesses for cross-layer component interaction and orchestration flows (Quality Gate 5).
 - `cloud/`: Live cloud integration validation against Supabase (Quality Gate 6).
 - `synchronization/`: Validation harnesses for offline/online synchronization engines (Quality Gate 6).
-- `operational/`: Operational validation framework executing end-to-end multi-step business scenarios (Slice OV-1: Sanity Execution, Slice OV-2: Authentication & Session Lifecycle, Slice OV-3: Attendance Operational Validation).
+- `operational/`: Operational validation framework executing end-to-end multi-step business scenarios (Slice OV-1: Sanity Execution, Slice OV-2: Authentication & Session Lifecycle, Slice OV-3: Attendance Operational Validation, Slice OV-4/OV-4A: GPS Operational Validation & Hardening).
 - `production/`: Validation of production readiness (planned).
 
 ## Rules
@@ -28,7 +28,7 @@ This directory is the permanent home for every validation harness, regression te
 | `integration` | Cross-module orchestration flows (`Configuration`→`Auth`, `Auth`→`UserContext`, `UserContext`→`WorkerProfile`, `WorkerAdmin`→`WorkerRepository`, `WorkerAdmin`→`WorkerSync`, `WorkerSync`→`WorkerRepository`, `Storage`→`Repository`) | `load`, `initialize`, `login`, `setCurrentWorker`, `load`, `createWorker`, `updateWorker`, `deactivateWorker`, `sync`, `append`, `createShift`, `appendEvent`, `register` | ✅ VERIFIED |
 | `cloud` | Live Supabase configuration, single-instance Auth client, AuthApiError translation, live table queries, seeded data verification, schema check, identity propagation, profile query, admin orchestration, live sync, SDK isolation audit, contract immutability | `load`, `initialize`, `login`, `restoreSession`, `logout`, `setCurrentWorker`, `createWorker`, `sync`, `status` | ✅ VERIFIED |
 | `synchronization` | `WorkerSyncEngine`, live Supabase Sync Provider, delta sync pipeline, error recovery, unauthenticated sync rejection, failure rollback | `initialize`, `sync`, `status` | ✅ VERIFIED |
-| `operational` | Operational Scenario Runner, Fixtures (Auth, Worker, Attendance, GPS, Shift, Device, Sync, Net, Time), Assertions, End-to-End Operational Workflow Scenarios | `setup`, `execute`, `verify`, `cleanup`, `runAll` | ✅ VERIFIED |
+| `operational` | Operational Scenario Runner, Fixtures (Auth, Worker, Attendance, GPS, Shift, Device, Sync, Net, Time), Assertions, End-to-End Operational Workflow Scenarios (OV-1: Sanity, OV-2: Auth, OV-3: Attendance, OV-4/OV-4A: GPS Validation & Hardening) | `setup`, `execute`, `verify`, `cleanup`, `runAll`, `LocationEvaluationEngine.evaluate` | ✅ VERIFIED |
 | `production` | Build assets, Environment, Constraints | N/A (Planned) | ⏳ PENDING |
 
 ## Execution Flow & Module Registration

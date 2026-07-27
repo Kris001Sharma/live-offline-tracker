@@ -135,6 +135,8 @@ This document outlines the milestones, feature releases, and chronological plan 
 | **OV-1** | Operational Validation Framework | ✅ COMPLETED |
 | **OV-2** | Authentication & Session Operational Validation | ✅ COMPLETED |
 | **OV-3** | Attendance Operational Validation | ✅ COMPLETED |
+| **OV-4** | GPS Operational Validation | ✅ COMPLETED |
+| **OV-4A** | GPS Operational Validation Hardening | ✅ COMPLETED |
 
 ### Future Phases
 - **Phase 10**: Application Shell & UI

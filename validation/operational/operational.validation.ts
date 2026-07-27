@@ -2,7 +2,8 @@ import { OperationalScenarioRunner } from './runner';
 import { 
   OperationalSanityScenario, 
   OperationalAuthenticationScenario,
-  OperationalAttendanceScenario 
+  OperationalAttendanceScenario,
+  OperationalGPSScenario
 } from './scenarios';
 
 async function runOperationalValidation() {
@@ -12,6 +13,7 @@ async function runOperationalValidation() {
   runner.register(new OperationalSanityScenario());
   runner.register(new OperationalAuthenticationScenario());
   runner.register(new OperationalAttendanceScenario());
+  runner.register(new OperationalGPSScenario());
 
   // Execute all registered scenarios sequentially
   await runner.runAll();

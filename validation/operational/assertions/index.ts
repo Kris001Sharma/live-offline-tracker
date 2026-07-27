@@ -118,3 +118,31 @@ export async function assertSupabaseState(
     throw new Error(`Assertion Failed [assertSupabaseState]: ${message}`);
   }
 }
+
+export function assertAccepted(
+  result: { accepted: boolean; reasons?: readonly string[] },
+  message: string
+): void {
+  const isMatch = result.accepted === true;
+  OperationalHarness.recordAssertion(isMatch);
+  if (isMatch) {
+    console.log(`  ✅ [ASSERT_ACCEPTED]: ${message}`);
+  } else {
+    console.error(`  ❌ [ASSERT_ACCEPTED_FAIL]: ${message} (Got reasons: ${result.reasons?.join(', ')})`);
+    throw new Error(`Assertion Failed [assertAccepted]: ${message}`);
+  }
+}
+
+export function assertRejected(
+  result: { accepted: boolean; reasons?: readonly string[] },
+  message: string
+): void {
+  const isMatch = result.accepted === false;
+  OperationalHarness.recordAssertion(isMatch);
+  if (isMatch) {
+    console.log(`  ✅ [ASSERT_REJECTED]: ${message} (Reasons: ${result.reasons?.join(', ')})`);
+  } else {
+    console.error(`  ❌ [ASSERT_REJECTED_FAIL]: ${message} (Expected rejected, got accepted)`);
+    throw new Error(`Assertion Failed [assertRejected]: ${message}`);
+  }
+}

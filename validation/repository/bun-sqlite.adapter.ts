@@ -75,6 +75,20 @@ export class BunSQLiteAdapter implements StorageAdapter {
           created_at TEXT NOT NULL,
           updated_at TEXT NOT NULL
       );
+      CREATE TABLE IF NOT EXISTS locations (
+          id TEXT PRIMARY KEY,
+          shift_id TEXT,
+          worker_id TEXT NOT NULL,
+          latitude REAL NOT NULL,
+          longitude REAL NOT NULL,
+          accuracy REAL NOT NULL,
+          altitude REAL,
+          speed REAL,
+          heading REAL,
+          recorded_at TEXT NOT NULL,
+          sync_status TEXT NOT NULL,
+          created_at TEXT NOT NULL
+      );
     `);
 
     this._initialized = true;

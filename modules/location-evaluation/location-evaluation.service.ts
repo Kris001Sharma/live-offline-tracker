@@ -13,9 +13,69 @@ export const LocationEvaluationEngine = {
     let measurements: EvaluationMetadata = {};
     let accepted = true;
 
+    if (!request || !request.currentLocation || !request.options) {
+      return Object.freeze({
+        accepted: false,
+        reasons: Object.freeze([EvaluationReason.INVALID_COORDINATES]),
+        measurements: Object.freeze({})
+      });
+    }
+
     const { currentLocation, previousLocation, previousTimestamp, options } = request;
 
-    // 1. Accuracy Check
+    // 1. Required & Defensive Coordinate Validation
+    const lat = currentLocation?.latitude;
+    const lng = currentLocation?.longitude;
+
+    const isLatValid = typeof lat === 'number' && Number.isFinite(lat) && lat >= -90 && lat <= 90;
+    const isLngValid = typeof lng === 'number' && Number.isFinite(lng) && lng >= -180 && lng <= 180;
+
+    if (!isLatValid || !isLngValid) {
+      accepted = false;
+      reasons.push(EvaluationReason.INVALID_COORDINATES);
+    }
+
+    // 2. Defensive Timestamp Validation
+    const currentMs = currentLocation?.timestamp ? new Date(currentLocation.timestamp).getTime() : NaN;
+    if (isNaN(currentMs)) {
+      accepted = false;
+      reasons.push(EvaluationReason.INVALID_TIMESTAMP);
+    } else if (previousTimestamp !== undefined) {
+      const prevMs = new Date(previousTimestamp).getTime();
+      if (!isNaN(prevMs) && currentMs < prevMs) {
+        accepted = false;
+        reasons.push(EvaluationReason.INVALID_TIMESTAMP);
+      }
+    }
+
+    // If basic input/coordinate/timestamp checks failed, stop further geometric checks
+    if (!accepted) {
+      return Object.freeze({
+        accepted: false,
+        reasons: Object.freeze(reasons),
+        measurements: Object.freeze(measurements)
+      });
+    }
+
+    // 3. Speed / Rapid GPS Jump Check
+    const maxSpeed = options.maxSpeedMps ?? 150; // Default max speed 150 m/s (~540 km/h)
+    if (previousLocation !== undefined && previousTimestamp !== undefined) {
+      const prevMs = new Date(previousTimestamp).getTime();
+      if (!isNaN(prevMs) && currentMs > prevMs) {
+        const timeElapsedSeconds = (currentMs - prevMs) / 1000;
+        const distanceMeters = this.calculateDistance(currentLocation, previousLocation);
+        const speedMps = timeElapsedSeconds > 0 ? distanceMeters / timeElapsedSeconds : Infinity;
+
+        measurements = { ...measurements, distanceMeters, timeElapsedSeconds };
+
+        if (speedMps > maxSpeed) {
+          accepted = false;
+          reasons.push(EvaluationReason.SPEED_REJECTED);
+        }
+      }
+    }
+
+    // 4. Accuracy Check
     if (options.maxAccuracyMeters !== undefined) {
       measurements = { ...measurements, accuracyMeters: currentLocation.accuracy };
       if (currentLocation.accuracy > options.maxAccuracyMeters) {
@@ -24,12 +84,10 @@ export const LocationEvaluationEngine = {
       }
     }
 
-    // 2. Time Check
+    // 5. Time Check
     if (options.minTimeSeconds !== undefined && previousTimestamp !== undefined) {
-      const currentMs = new Date(currentLocation.timestamp).getTime();
       const prevMs = new Date(previousTimestamp).getTime();
-      
-      if (!isNaN(currentMs) && !isNaN(prevMs)) {
+      if (!isNaN(prevMs)) {
         const timeElapsedSeconds = (currentMs - prevMs) / 1000;
         measurements = { ...measurements, timeElapsedSeconds };
 
@@ -40,7 +98,7 @@ export const LocationEvaluationEngine = {
       }
     }
 
-    // 3. Distance Check
+    // 6. Distance Check
     if (options.minDistanceMeters !== undefined && previousLocation !== undefined) {
       const distanceMeters = this.calculateDistance(currentLocation, previousLocation);
       measurements = { ...measurements, distanceMeters };
@@ -51,7 +109,7 @@ export const LocationEvaluationEngine = {
       }
     }
 
-    // 4. Geofence Check
+    // 7. Geofence Check
     if (options.geofence !== undefined) {
       const distanceToGeofenceCenterMeters = this.calculateDistance(
         currentLocation,
@@ -70,11 +128,11 @@ export const LocationEvaluationEngine = {
       reasons.push(EvaluationReason.ACCEPTED);
     }
 
-    return {
+    return Object.freeze({
       accepted,
-      reasons,
-      measurements
-    };
+      reasons: Object.freeze(reasons),
+      measurements: Object.freeze(measurements)
+    });
   },
 
   calculateDistance(point1: Point, point2: Point): number {

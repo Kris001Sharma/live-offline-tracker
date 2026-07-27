@@ -14,6 +14,7 @@ export interface EvaluationOptions {
   readonly maxAccuracyMeters?: number;
   readonly minDistanceMeters?: number;
   readonly minTimeSeconds?: number;
+  readonly maxSpeedMps?: number;
   readonly geofence?: Geofence;
 }
 
@@ -29,6 +30,9 @@ export enum EvaluationReason {
   DISTANCE_REJECTED = 'DISTANCE_REJECTED',
   TIME_REJECTED = 'TIME_REJECTED',
   GEOFENCE_REJECTED = 'GEOFENCE_REJECTED',
+  INVALID_COORDINATES = 'INVALID_COORDINATES',
+  INVALID_TIMESTAMP = 'INVALID_TIMESTAMP',
+  SPEED_REJECTED = 'SPEED_REJECTED',
   ACCEPTED = 'ACCEPTED'
 }
 
