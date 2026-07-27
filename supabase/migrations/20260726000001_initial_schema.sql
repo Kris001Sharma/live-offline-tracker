@@ -37,3 +37,4 @@ CREATE TABLE IF NOT EXISTS sync_queue (
 CREATE INDEX IF NOT EXISTS idx_events_occurred_at ON events(occurred_at);
 CREATE INDEX IF NOT EXISTS idx_events_shift_id ON events(shift_id);
 CREATE INDEX IF NOT EXISTS idx_sync_queue_status ON sync_queue(status);
+
