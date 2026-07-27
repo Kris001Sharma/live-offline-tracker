@@ -12,6 +12,7 @@ export class BunSQLiteAdapter implements StorageAdapter {
       return;
     }
     this.db = new Database(this.filename);
+    this.db.run("PRAGMA foreign_keys = ON;");
     
     // Create tables based on schema
     this.db.run(`
@@ -95,7 +96,7 @@ export class BunSQLiteAdapter implements StorageAdapter {
       try {
         const stmt = this.db.prepare(query);
         const rows = stmt.all(...params) as T[];
-        console.log('SQL:', upperQuery, params, 'ROWS:', rows); return { rows };
+        return { rows };
       } catch (err: any) {
         throw new Error(`Execute SELECT failed: ${err.message}`);
       }
@@ -103,7 +104,7 @@ export class BunSQLiteAdapter implements StorageAdapter {
       try {
         const stmt = this.db.prepare(query);
         const res = stmt.run(...params);
-        console.log('SQL:', upperQuery, params, 'CHANGES:', res.changes); return {
+        return {
           rows: [],
           rowsAffected: res.changes,
           insertId: res.lastInsertRowid.toString()
