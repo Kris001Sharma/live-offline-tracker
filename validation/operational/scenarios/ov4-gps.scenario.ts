@@ -38,8 +38,7 @@ export class OperationalGPSScenario implements OperationalScenario {
   private evalOptions = {
     maxAccuracyMeters: 50,
     geofence: this.geofence,
-    minTimeSeconds: 5,
-    maxSpeedMps: 150
+    minTimeSeconds: 5
   };
 
   private evaluationResults: LocationEvaluationResult[] = [];

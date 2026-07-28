@@ -14,7 +14,6 @@ export interface EvaluationOptions {
   readonly maxAccuracyMeters?: number;
   readonly minDistanceMeters?: number;
   readonly minTimeSeconds?: number;
-  readonly maxSpeedMps?: number;
   readonly geofence?: Geofence;
 }
 

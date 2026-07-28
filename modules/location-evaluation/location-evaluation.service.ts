@@ -1,4 +1,4 @@
-import { EARTH_RADIUS_METERS } from './location-evaluation.constants';
+import { EARTH_RADIUS_METERS, MAX_SPEED_MPS } from './location-evaluation.constants';
 import { 
   LocationEvaluationRequest, 
   LocationEvaluationResult, 
@@ -58,7 +58,7 @@ export const LocationEvaluationEngine = {
     }
 
     // 3. Speed / Rapid GPS Jump Check
-    const maxSpeed = options.maxSpeedMps ?? 150; // Default max speed 150 m/s (~540 km/h)
+    const maxSpeed = MAX_SPEED_MPS; // Internal immutable max speed 150 m/s (~540 km/h)
     if (previousLocation !== undefined && previousTimestamp !== undefined) {
       const prevMs = new Date(previousTimestamp).getTime();
       if (!isNaN(prevMs) && currentMs > prevMs) {

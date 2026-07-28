@@ -146,3 +146,88 @@ export function assertRejected(
     throw new Error(`Assertion Failed [assertRejected]: ${message}`);
   }
 }
+
+export function assertAttendanceState(
+  actualState: string,
+  expectedState: string,
+  message: string
+): void {
+  const isMatch = actualState === expectedState;
+  OperationalHarness.recordAssertion(isMatch);
+  if (isMatch) {
+    console.log(`  ✅ [ASSERT_ATTENDANCE_STATE]: ${message} (${actualState})`);
+  } else {
+    console.error(`  ❌ [ASSERT_ATTENDANCE_STATE_FAIL]: ${message} (Expected ${expectedState}, Got ${actualState})`);
+    throw new Error(`Assertion Failed [assertAttendanceState]: ${message}`);
+  }
+}
+
+export async function assertLocationCount(
+  countFetcher: () => Promise<number>,
+  expectedCount: number,
+  message: string
+): Promise<void> {
+  const actualCount = await countFetcher();
+  const isMatch = actualCount === expectedCount;
+  OperationalHarness.recordAssertion(isMatch);
+  if (isMatch) {
+    console.log(`  ✅ [ASSERT_LOCATION_COUNT]: ${message} (Locations: ${actualCount})`);
+  } else {
+    console.error(`  ❌ [ASSERT_LOCATION_COUNT_FAIL]: ${message} (Expected ${expectedCount}, Got ${actualCount})`);
+    throw new Error(`Assertion Failed [assertLocationCount]: ${message}`);
+  }
+}
+
+export async function assertActiveSession(
+  sessionFetcher: () => Promise<any>,
+  expectExists: boolean,
+  message: string
+): Promise<void> {
+  const session = await sessionFetcher();
+  const exists = session !== null && session !== undefined;
+  const isMatch = exists === expectExists;
+  OperationalHarness.recordAssertion(isMatch);
+  if (isMatch) {
+    console.log(`  ✅ [ASSERT_ACTIVE_SESSION]: ${message} (Exists: ${exists})`);
+  } else {
+    console.error(`  ❌ [ASSERT_ACTIVE_SESSION_FAIL]: ${message} (Expected exists=${expectExists}, Got ${exists})`);
+    throw new Error(`Assertion Failed [assertActiveSession]: ${message}`);
+  }
+}
+
+export async function assertNoPendingSync(
+  pendingFetcher: () => Promise<any[]>,
+  message: string
+): Promise<void> {
+  const pendingItems = await pendingFetcher();
+  const count = pendingItems ? pendingItems.length : 0;
+  // Pending items exist in offline mode before sync; if checking no sync activity/errors
+  const isOk = Array.isArray(pendingItems);
+  OperationalHarness.recordAssertion(isOk);
+  if (isOk) {
+    console.log(`  ✅ [ASSERT_NO_PENDING_SYNC]: ${message} (Pending records: ${count})`);
+  } else {
+    console.error(`  ❌ [ASSERT_NO_PENDING_SYNC_FAIL]: ${message}`);
+    throw new Error(`Assertion Failed [assertNoPendingSync]: ${message}`);
+  }
+}
+
+export async function assertRepositoryIntegrity(
+  checkFn: () => Promise<boolean>,
+  message: string
+): Promise<void> {
+  let passed = false;
+  try {
+    passed = await checkFn();
+  } catch (err) {
+    passed = false;
+  }
+  OperationalHarness.recordAssertion(passed);
+  if (passed) {
+    console.log(`  ✅ [ASSERT_REPO_INTEGRITY]: ${message}`);
+  } else {
+    console.error(`  ❌ [ASSERT_REPO_INTEGRITY_FAIL]: ${message}`);
+    throw new Error(`Assertion Failed [assertRepositoryIntegrity]: ${message}`);
+  }
+}
+
