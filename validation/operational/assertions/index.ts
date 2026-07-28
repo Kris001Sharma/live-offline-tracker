@@ -231,3 +231,101 @@ export async function assertRepositoryIntegrity(
   }
 }
 
+export async function assertPendingSync(
+  pendingFetcher: () => Promise<any[]>,
+  expectedCount: number,
+  message: string
+): Promise<void> {
+  const pendingItems = await pendingFetcher();
+  const actualCount = pendingItems ? pendingItems.length : 0;
+  const isMatch = actualCount === expectedCount;
+  OperationalHarness.recordAssertion(isMatch);
+  if (isMatch) {
+    console.log(`  ✅ [ASSERT_PENDING_SYNC]: ${message} (Pending: ${actualCount})`);
+  } else {
+    console.error(`  ❌ [ASSERT_PENDING_SYNC_FAIL]: ${message} (Expected ${expectedCount}, Got ${actualCount})`);
+    throw new Error(`Assertion Failed [assertPendingSync]: ${message}`);
+  }
+}
+
+export function assertSyncCompleted(
+  syncStatusFetcher: () => { consecutiveFailures: number; lastSuccessfulSyncAt?: string },
+  message: string
+): void {
+  const status = syncStatusFetcher();
+  const isOk = status.consecutiveFailures === 0 && !!status.lastSuccessfulSyncAt;
+  OperationalHarness.recordAssertion(isOk);
+  if (isOk) {
+    console.log(`  ✅ [ASSERT_SYNC_COMPLETED]: ${message} (Last successful: ${status.lastSuccessfulSyncAt})`);
+  } else {
+    console.error(`  ❌ [ASSERT_SYNC_COMPLETED_FAIL]: ${message} (Failures: ${status.consecutiveFailures}, LastSync: ${status.lastSuccessfulSyncAt})`);
+    throw new Error(`Assertion Failed [assertSyncCompleted]: ${message}`);
+  }
+}
+
+export async function assertRemoteRepositoryCount(
+  countFetcher: () => Promise<number>,
+  expectedCount: number,
+  message: string
+): Promise<void> {
+  const actualCount = await countFetcher();
+  const isMatch = actualCount === expectedCount;
+  OperationalHarness.recordAssertion(isMatch);
+  if (isMatch) {
+    console.log(`  ✅ [ASSERT_REMOTE_REPO_COUNT]: ${message} (Remote Count: ${actualCount})`);
+  } else {
+    console.error(`  ❌ [ASSERT_REMOTE_REPO_COUNT_FAIL]: ${message} (Expected ${expectedCount}, Got ${actualCount})`);
+    throw new Error(`Assertion Failed [assertRemoteRepositoryCount]: ${message}`);
+  }
+}
+
+export async function assertRemoteEqualsLocal(
+  localCountFetcher: () => Promise<number>,
+  remoteCountFetcher: () => Promise<number>,
+  message: string
+): Promise<void> {
+  const localCount = await localCountFetcher();
+  const remoteCount = await remoteCountFetcher();
+  const isMatch = localCount === remoteCount;
+  OperationalHarness.recordAssertion(isMatch);
+  if (isMatch) {
+    console.log(`  ✅ [ASSERT_REMOTE_EQUALS_LOCAL]: ${message} (Local: ${localCount}, Remote: ${remoteCount})`);
+  } else {
+    console.error(`  ❌ [ASSERT_REMOTE_EQUALS_LOCAL_FAIL]: ${message} (Local ${localCount} !== Remote ${remoteCount})`);
+    throw new Error(`Assertion Failed [assertRemoteEqualsLocal]: ${message}`);
+  }
+}
+
+export async function assertNoDuplicateUploads(
+  remoteRecordsFetcher: () => Promise<any[]>,
+  idSelector: (item: any) => string,
+  message: string
+): Promise<void> {
+  const records = await remoteRecordsFetcher();
+  const ids = records.map(idSelector);
+  const uniqueIds = new Set(ids);
+  const isMatch = ids.length === uniqueIds.size;
+  OperationalHarness.recordAssertion(isMatch);
+  if (isMatch) {
+    console.log(`  ✅ [ASSERT_NO_DUPLICATE_UPLOADS]: ${message} (Unique records: ${ids.length})`);
+  } else {
+    console.error(`  ❌ [ASSERT_NO_DUPLICATE_UPLOADS_FAIL]: ${message} (Total records: ${ids.length}, Unique: ${uniqueIds.size})`);
+    throw new Error(`Assertion Failed [assertNoDuplicateUploads]: ${message}`);
+  }
+}
+
+export function assertFailureCounterReset(
+  failuresFetcher: () => number,
+  message: string
+): void {
+  const count = failuresFetcher();
+  const isMatch = count === 0;
+  OperationalHarness.recordAssertion(isMatch);
+  if (isMatch) {
+    console.log(`  ✅ [ASSERT_FAILURE_COUNTER_RESET]: ${message} (Consecutive failures: 0)`);
+  } else {
+    console.error(`  ❌ [ASSERT_FAILURE_COUNTER_RESET_FAIL]: ${message} (Got: ${count})`);
+    throw new Error(`Assertion Failed [assertFailureCounterReset]: ${message}`);
+  }
+}
+

@@ -4,7 +4,8 @@ import {
   OperationalAuthenticationScenario,
   OperationalAttendanceScenario,
   OperationalGPSScenario,
-  OperationalLocalWorkdayScenario
+  OperationalLocalWorkdayScenario,
+  OperationalOfflineSyncScenario
 } from './scenarios';
 
 async function runOperationalValidation() {
@@ -16,6 +17,7 @@ async function runOperationalValidation() {
   runner.register(new OperationalAttendanceScenario());
   runner.register(new OperationalGPSScenario());
   runner.register(new OperationalLocalWorkdayScenario());
+  runner.register(new OperationalOfflineSyncScenario());
 
   // Execute all registered scenarios sequentially
   await runner.runAll();

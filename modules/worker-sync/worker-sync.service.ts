@@ -1,4 +1,4 @@
-import { WorkerRepository } from '../repositories';
+import { WorkerRepository, AttendanceRepository, LocationRepository } from '../repositories';
 import { AuthenticationEngine, AuthenticationState } from '../authentication';
 import {
   WorkerSyncLifecycle,
@@ -145,6 +145,25 @@ export const WorkerSyncEngine = {
         synchronizedCount++;
       }
 
+      let attendanceUploadedCount = 0;
+      let locationUploadedCount = 0;
+
+      const pendingAttendance = await AttendanceRepository.findPending();
+      if (pendingAttendance.length > 0 && provider.uploadAttendance) {
+        await provider.uploadAttendance(pendingAttendance);
+        await AttendanceRepository.markSynced(pendingAttendance.map((a) => a.id));
+        attendanceUploadedCount = pendingAttendance.length;
+        synchronizedCount += attendanceUploadedCount;
+      }
+
+      const pendingLocations = await LocationRepository.findPending();
+      if (pendingLocations.length > 0 && provider.uploadLocations) {
+        await provider.uploadLocations(pendingLocations);
+        await LocationRepository.markSynced(pendingLocations.map((l) => l.id));
+        locationUploadedCount = pendingLocations.length;
+        synchronizedCount += locationUploadedCount;
+      }
+
       lastSuccessfulSyncAt = new Date().toISOString();
       lastSyncDuration = Date.now() - startTime;
       consecutiveFailures = 0;
@@ -153,7 +172,9 @@ export const WorkerSyncEngine = {
 
       return deepCloneAndFreeze({
         success: true,
-        synchronizedCount
+        synchronizedCount,
+        attendanceUploadedCount,
+        locationUploadedCount
       });
     } catch (error: any) {
       lastFailedSyncAt = new Date().toISOString();

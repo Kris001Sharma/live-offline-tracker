@@ -1,3 +1,6 @@
+import { AttendanceEntity } from '../repositories/attendance/attendance.repository.types';
+import { LocationEntity } from '../repositories/location/location.types';
+
 export enum WorkerSyncLifecycle {
   IDLE = 'IDLE',
   SYNCING = 'SYNCING'
@@ -30,11 +33,15 @@ export interface WorkerSyncStatus {
   readonly lastFailedSyncAt?: string;
   readonly lastSyncDuration?: number;
   readonly consecutiveFailures: number;
+  readonly pendingAttendanceCount?: number;
+  readonly pendingLocationCount?: number;
 }
 
 export interface WorkerSyncResult {
   readonly success: boolean;
   readonly synchronizedCount?: number;
+  readonly attendanceUploadedCount?: number;
+  readonly locationUploadedCount?: number;
   readonly error?: string;
   readonly errorCode?: WorkerSyncErrorCode;
 }
@@ -52,4 +59,6 @@ export interface RemoteWorkerRecord {
 
 export interface WorkerSyncProvider {
   fetchUpdatedWorkers(since?: string): Promise<RemoteWorkerRecord[]>;
+  uploadAttendance?(records: AttendanceEntity[]): Promise<void>;
+  uploadLocations?(records: LocationEntity[]): Promise<void>;
 }

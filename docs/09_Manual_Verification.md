@@ -1092,4 +1092,31 @@ Permanently record and verify that `AuthenticationEngine` is the sole module per
 **QUALITY GATE OV-5**
 **VERIFIED ✅**
 
+## Quality Gate OV-6: Offline Synchronization & Recovery Operational Validation
+### Verification Execution (2026-07-28)
+1. **11-Phase Offline-to-Online Synchronization Workflow Execution (`OV-SCENARIO-06`)**:
+   - **Phase 1 (Setup)**: Initialized local `StorageEngine` SQLite DB, direct remote `SupabaseClient` test instance, authenticated `UserContext` as worker `SYSTEM`, seeded local and remote Supabase `workers` and `shifts` tables with valid foreign key records. Verified initial local pending queues for attendance (0) and locations (0) were empty.
+   - **Phase 2 (Initial Connectivity Verification)**: Configured `ConnectivityFixture` to simulate online connectivity (`setOnline(true)`). Verified network provider state reports online.
+   - **Phase 3 (Network Outage Simulation)**: Simulated total network loss (`setOnline(false)`). Executed `WorkerSyncEngine.sync()`, verified immediate failure return with `WorkerSyncErrorCode.NETWORK_ERROR`, zero records uploaded, and zero cloud writes attempted.
+   - **Phase 4 (Offline Workday Execution)**: Executed complete attendance lifecycle while completely offline. Successfully performed check-in via `AttendanceEngine.checkIn()`, recorded 20 consecutive GPS location samples via `LocationEvaluationEngine` and `LocationRepository`, and completed check-out via `AttendanceEngine.checkOut()`.
+   - **Phase 5 (Offline Local Persistence & Isolation Verification)**: Verified SQLite persisted 20 location records and 1 closed attendance record locally. Verified pending sync queue recorded exactly 1 attendance item and 20 location items. Queried remote Supabase tables directly and verified 0 attendance records and 0 location events were written to the cloud while offline.
+   - **Phase 6 (Network Restoration)**: Restored connectivity (`setOnline(true)`). Verified `ConnectivityFixture` reports online state.
+   - **Phase 7 (Recovery Synchronization Execution)**: Invoked `WorkerSyncEngine.sync()`. Verified synchronization succeeded (`success === true`), exactly 1 attendance record uploaded, and exactly 20 location records uploaded to Supabase.
+   - **Phase 8 (Post-Sync Local & Remote State Verification)**: Verified local SQLite pending queues for attendance (0) and locations (0) were completely cleared. Verified `WorkerSyncEngine.status()` updated `lastSuccessfulSyncAt` timestamp and reset `consecutiveFailures` to 0. Queried remote Supabase tables directly and verified remote `attendance` table count increased by 1 and remote `events` table recorded all 20 location updates linked to shift ID.
+   - **Phase 9 (Idempotency Verification)**: Executed a second consecutive `WorkerSyncEngine.sync()` while online. Verified sync succeeded with exactly 0 new uploads, 0 attendance uploads, and 0 location uploads. Verified zero duplicate records exist in remote Supabase tables.
+   - **Phase 10 (End-to-End Integrity & Contract Verification)**: Verified local SQLite attendance record matches remote Supabase attendance record field-for-field (`id`, `worker_id`, `check_in_at`, `check_out_at`, `latitude`, `longitude`). Verified all 20 local location records match remote Supabase event records with valid foreign key references (`shift_id`, `worker_id`).
+   - **Phase 11 (Cleanup)**: Restored network connectivity state, cleared local SQLite repositories, and cleanly closed `StorageEngine`.
+2. **Execution Summary**:
+   - **Scenario ID**: `OV-SCENARIO-06`
+   - **Title**: `Offline Synchronization & Recovery Operational Validation`
+   - **Assertions Passed**: 105 (Scenario OV-6), 301 Total across operational suite (479 across full suite)
+   - **Assertions Failed**: 0
+   - **TypeScript Compilation**: Clean (`npx tsc --noEmit` passed with 0 errors)
+   - **Runtime**: ~2.7s (Full validation suite ~3.7s total)
+
+### Overall Result
+**QUALITY GATE OV-6**
+**VERIFIED ✅**
+
+
 
