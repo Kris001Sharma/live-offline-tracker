@@ -88,3 +88,14 @@ This document records the key architectural decisions made for the Sapana Live T
   3. Any structural modification or contract alteration requires an approved Architecture Decision Record (ADR) prior to implementation.
 - **Status**: Approved
 
+---
+
+## ADR-012: Application Composition Root
+- **Decision**: The Application Shell (`AppCompositionRoot`) will act as the singular frontend root and orchestrate all engine initialization, global layouts, and routing.
+- **Reason**: Centralized initialization prevents duplicate or out-of-order startup sequences. A single composition root isolates the UI presentation layer from backend engine internals, enforcing the frozen backend RC1 contract.
+- **Rules**:
+  1. Initialization of all engines must occur sequentially via `bootstrapApplication()`.
+  2. UI components are strictly forbidden from initializing backend engines or maintaining duplicated lifecycle state.
+  3. No UI components may directly import backend implementations like Supabase, SQLite, or internal adapters.
+- **Status**: Approved
+

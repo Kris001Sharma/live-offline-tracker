@@ -318,4 +318,34 @@ Following this freeze, modifications to backend modules are strictly restricted 
 
 Any structural modification or API contract change requires an approved **Architecture Decision Record (ADR)** prior to implementation.
 
+---
+
+## Phase 10: Application Composition Layer
+
+The Application Shell establishes the permanent frontend root, isolating UI presentation from backend engines. It acts as the orchestration layer for engine bootstrap, global layout primitives, and navigation.
+
+### 1. Application Bootstrap Sequence
+The `bootstrapApplication` function orchestrates central initialization:
+`ConfigurationEngine.load()` → `StorageEngine.initialize()` → `ConnectivityEngine.initialize()` → `AuthenticationEngine.initialize()` → `UserContextEngine.initialize()` → `WorkerProfileEngine.initialize()`
+
+### 2. Composition Root
+`AppCompositionRoot` is the central React Context provider. It handles:
+- Ownership of application bootstrap execution.
+- Restoration of offline sessions (`AuthenticationEngine.restoreSession()`).
+- Loading of the worker profile.
+- Exposure of `AppLifecycleState` (e.g. `INITIALIZING`, `READY`, `ERROR`) to the router.
+
+### 3. Application Lifecycle
+The application state transitions unidirectionally:
+`NOT_INITIALIZED` → `INITIALIZING` → `RESTORING_SESSION` → `LOADING_PROFILE` → `READY` (or `ERROR`).
+All UI screens mount only when the shell reaches `READY`.
+
+### 4. Routing Ownership
+The `AppRouter` defines the top-level route tree (`/dashboard`, `/tracking`, `/sync`, etc.). It acts as the ultimate authority on viewport changes and is guarded by the global `ErrorBoundary`.
+
+### 5. UI Ownership Rules
+- **UI Components** are strictly forbidden from initializing backend engines.
+- **UI Components** must never directly import `@supabase/supabase-js`, `sql.js`, or `@capacitor-community/sqlite`.
+- All interactions with domain models must traverse through the frozen backend engines.
+
 
