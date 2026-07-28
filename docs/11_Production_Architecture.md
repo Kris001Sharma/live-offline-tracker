@@ -355,3 +355,10 @@ The `AppRouter` defines the top-level route tree (`/dashboard`, `/tracking`, `/s
 - **Session Restoration**: `AppCompositionRoot` coordinates session restoration at startup by requesting `AuthenticationEngine.restoreSession()`. If offline, it routes to a specific `OFFLINE_STARTUP` state.
 - **Authentication Ownership**: The `AuthScreen` directly interfaces with `AuthenticationEngine` for login but delegates context mapping and application-wide identity orchestration to `AppCompositionRoot`. Feature screens are completely decoupled from authentication.
 - **Navigation Ownership**: The `AppRouter` dictates visible screens purely based on the `AppLifecycleState` and `isAuthenticated` flags exposed by `AppCompositionRoot`.
+
+
+### 7. Worker Application Framework (UI Foundation)
+- **Navigation Ownership**: Navigation is exclusively owned by `WorkerLayout`, `TopAppBar`, and `BottomNavigation`. Feature screens must not implement their own scaffolding or navigation.
+- **Page Skeletons**: Feature screens must compose their layouts using `PageSkeleton`, ensuring consistent padding, scroll areas, and typography.
+- **Global Feedback**: Overlays (Loading, Error, Toasts) are globally hosted by `GlobalFeedbackProvider`. Feature screens dispatch events to the context instead of rendering local overlay components.
+- **Permission Guards**: Access control is enforced via wrapper components (e.g., `<AuthenticatedOnly>`, `<SupervisorOnly>`) integrated at the router level.

@@ -108,3 +108,12 @@ This document records the key architectural decisions made for the Sapana Live T
 - **Decision**: Authentication UI screens communicate strictly with the `AuthenticationEngine` and delegate overarching runtime state synchronization to the `AppCompositionRoot`. The application shell alone orchestrates identity flow (login, routing, session restore).
 - **Reason**: Feature screens should never hold authentication state, as it couples UI tightly to backend mechanics. By routing everything through the shell (`AppCompositionRoot`), we centralize the translation of a successful authentication event into synchronized profile/context updates, ensuring the dashboard never loads a half-initialized worker session.
 - **Status**: Approved
+
+
+---
+
+## ADR-014: Worker Application Framework
+
+- **Decision**: Introduce a strict `WorkerLayout` and `PageSkeleton` hierarchy, with a `GlobalFeedbackProvider` to centralize all overlays, dialogs, and toasts. Navigation logic is decoupled from feature logic.
+- **Reason**: Feature components should only focus on business logic and specific presentation. Decoupling the scaffolding prevents duplicate navigation elements, inconsistent safe-area padding, and overlapping modal z-index issues. This ensures the app is scalable as more features are added.
+- **Status**: Approved
