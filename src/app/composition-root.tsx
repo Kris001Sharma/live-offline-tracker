@@ -1,17 +1,19 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { AppLifecycleState } from './lifecycle';
 import { bootstrapApplication } from './bootstrap';
-import { AuthenticationEngine } from '@/modules/authentication';
-import { UserContextEngine } from '@/modules/user-context';
+import { AuthenticationEngine, AuthenticatedUser } from '@/modules/authentication';
+import { UserContextEngine, CurrentWorker, WorkerRole } from '@/modules/user-context';
 import { WorkerProfileEngine } from '@/modules/worker-profile';
 
 interface AppContextValue {
   lifecycleState: AppLifecycleState;
   error: Error | null;
   retry: () => void;
+  refreshAuth: () => void;
+  isAuthenticated: boolean;
 }
 
-const AppContext = createContext<AppContextValue | null>(null);
+export const AppContext = createContext<AppContextValue | null>(null);
 
 export const useAppContext = () => {
   const ctx = useContext(AppContext);
@@ -21,9 +23,20 @@ export const useAppContext = () => {
   return ctx;
 };
 
+export function mapToWorker(authUser: AuthenticatedUser): CurrentWorker {
+  return {
+    id: authUser.id,
+    email: authUser.email || '',
+    displayName: authUser.email || 'Unknown User',
+    role: 'WORKER' as WorkerRole,
+    active: true
+  };
+}
+
 export function AppCompositionRoot({ children }: { children: ReactNode }) {
   const [lifecycleState, setLifecycleState] = useState<AppLifecycleState>(AppLifecycleState.NOT_INITIALIZED);
   const [error, setError] = useState<Error | null>(null);
+  const [authTrigger, setAuthTrigger] = useState(0);
 
   const init = async () => {
     try {
@@ -32,12 +45,21 @@ export function AppCompositionRoot({ children }: { children: ReactNode }) {
       
       await bootstrapApplication();
 
-      // Simple session restoration sequence check
       setLifecycleState(AppLifecycleState.RESTORING_SESSION);
       const authStatus = await AuthenticationEngine.restoreSession();
       
+      if (authStatus.errorCode === 'NETWORK_ERROR') {
+         setLifecycleState(AppLifecycleState.OFFLINE_STARTUP);
+         return;
+      }
+      
       if (authStatus.state === 'AUTHENTICATED') {
         setLifecycleState(AppLifecycleState.LOADING_PROFILE);
+        const authUser = AuthenticationEngine.currentUser();
+        if (authUser) {
+           UserContextEngine.setCurrentWorker(mapToWorker(authUser));
+        }
+
         const userContextStatus = UserContextEngine.status();
         
         if (userContextStatus.currentWorkerId) {
@@ -47,7 +69,6 @@ export function AppCompositionRoot({ children }: { children: ReactNode }) {
           }
         }
       }
-
       setLifecycleState(AppLifecycleState.READY);
     } catch (err) {
       console.error('App Bootstrap Error:', err);
@@ -64,8 +85,14 @@ export function AppCompositionRoot({ children }: { children: ReactNode }) {
     init();
   };
 
+  const refreshAuth = () => {
+    setAuthTrigger(prev => prev + 1);
+  };
+
+  const isAuth = UserContextEngine.isAuthenticated() && AuthenticationEngine.status().state === 'AUTHENTICATED';
+
   return (
-    <AppContext.Provider value={{ lifecycleState, error, retry }}>
+    <AppContext.Provider value={{ lifecycleState, error, retry, refreshAuth, isAuthenticated: isAuth }}>
       {children}
     </AppContext.Provider>
   );

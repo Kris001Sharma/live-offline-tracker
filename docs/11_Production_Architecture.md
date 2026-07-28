@@ -349,3 +349,9 @@ The `AppRouter` defines the top-level route tree (`/dashboard`, `/tracking`, `/s
 - All interactions with domain models must traverse through the frozen backend engines.
 
 
+
+
+### 6. Identity Journey
+- **Session Restoration**: `AppCompositionRoot` coordinates session restoration at startup by requesting `AuthenticationEngine.restoreSession()`. If offline, it routes to a specific `OFFLINE_STARTUP` state.
+- **Authentication Ownership**: The `AuthScreen` directly interfaces with `AuthenticationEngine` for login but delegates context mapping and application-wide identity orchestration to `AppCompositionRoot`. Feature screens are completely decoupled from authentication.
+- **Navigation Ownership**: The `AppRouter` dictates visible screens purely based on the `AppLifecycleState` and `isAuthenticated` flags exposed by `AppCompositionRoot`.
