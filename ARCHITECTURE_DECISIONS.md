@@ -75,3 +75,16 @@ This document records the key architectural decisions made for the Sapana Live T
 - **Decision**: `AuthenticationEngine` is the sole module permitted to instantiate and own the `SupabaseClient`.
 - **Reason**: Centralizing Supabase client creation inside `AuthenticationEngine` ensures single-instance token/session lifecycle management, eliminates duplicated connections, prevents credential leaks, and establishes a strict security boundary. Repository modules, Feature Engines, Synchronization Engines, and UI components are strictly prohibited from directly importing `@supabase/supabase-js` or instantiating Supabase clients. All future cloud interactions must occur through `AuthenticationEngine` (or a dedicated Cloud API layer introduced by a future architecture phase) and never bypass this boundary.
 - **Status**: Approved
+
+---
+
+## ADR-011: Backend Release Candidate Freeze
+
+- **Decision**: The entire backend architecture — comprising 9 core engines (`ConfigurationEngine`, `StorageEngine`, `ConnectivityEngine`, `AuthenticationEngine`, `UserContextEngine`, `WorkerProfileEngine`, `TrustedDeviceEngine`, `AttendanceEngine`, `LocationEvaluationEngine`, `WorkerAdminEngine`, `WorkerSyncEngine`) and 5 repositories (`WorkerRepository`, `AttendanceRepository`, `LocationRepository`, `ShiftRepository`, `TrustedDeviceRepository`) — is officially declared **Backend Release Candidate 1 (RC1)** and frozen.
+- **Reason**: The backend has undergone complete, multi-layered validation across Unit Engine/Repository suites, Cross-Layer Integration, Live Cloud Supabase, Offline Delta Synchronization, and End-to-End Operational Scenarios (OV-1 through OV-6) with 100% test pass rate and clean TypeScript compilation. Freezing the backend contract ensures total stability for Phase 10 Application Shell & UI development.
+- **Rules**:
+  1. All public API contracts, method signatures, domain error codes, and status payload schemas are immutable.
+  2. UI development in Phase 10 must consume frozen backend contracts without modifying internal engine logic.
+  3. Any structural modification or contract alteration requires an approved Architecture Decision Record (ADR) prior to implementation.
+- **Status**: Approved
+

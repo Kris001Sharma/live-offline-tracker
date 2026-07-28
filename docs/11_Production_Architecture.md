@@ -292,3 +292,30 @@ The application includes a permanent Validation Framework established during Qua
 - Standardized assertions categorized by: Public APIs, Lifecycle, Failure Paths, Immutability, Architecture, and Operational Business Workflows.
 - Zero reliance on production databases; operates exclusively against an in-memory test database via `BunSQLiteAdapter`.
 
+---
+
+## Backend Freeze Policy (Release Candidate 1)
+
+The backend has achieved **Backend Release Candidate 1 (RC1)** status following comprehensive validation across all unit, integration, cloud, synchronization, and operational scenario suites.
+
+### 1. Frozen Modules List
+The following 9 core engines and 5 repositories constitute the frozen backend architecture:
+- **Core Infrastructure**: `ConfigurationEngine`, `StorageEngine`, `ConnectivityEngine`
+- **Identity & Authentication**: `AuthenticationEngine`, `UserContextEngine`, `WorkerProfileEngine`, `TrustedDeviceEngine`
+- **Domain Operations**: `AttendanceEngine`, `LocationEvaluationEngine`, `WorkerAdminEngine`
+- **Synchronization**: `WorkerSyncEngine`
+- **Repositories**: `WorkerRepository`, `AttendanceRepository`, `LocationRepository`, `ShiftRepository`, `TrustedDeviceRepository`
+
+### 2. Contract Stability Statement
+All public interfaces, method signatures, domain types, result codes, error classes, and state status objects exposed by the frozen modules are officially immutable. The Phase 10 Application Shell & UI layer must integrate against these exact contracts without altering method signatures or underlying data structures.
+
+### 3. Permitted Future Backend Changes
+Following this freeze, modifications to backend modules are strictly restricted to:
+- **Critical Production Bug Fixes**: Correcting verified security vulnerabilities or runtime crash defects.
+- **Security & Infrastructure Patching**: Upgrading low-level database drivers or SDK security patches without API changes.
+- **Performance Optimizations**: Internal query optimization or indexing that preserves 100% contract compatibility.
+- **Phase 11 Enhancements**: Approved future hardening features documented in product roadmap (e.g., background push synchronization, durable outbox queueing).
+
+Any structural modification or API contract change requires an approved **Architecture Decision Record (ADR)** prior to implementation.
+
+
