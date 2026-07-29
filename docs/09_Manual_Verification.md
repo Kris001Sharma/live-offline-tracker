@@ -1146,12 +1146,3 @@ Permanently record and verify that `AuthenticationEngine` is the sole module per
 
 
 
-
-
-### Phase 10 - Slice 10C: UI Foundation
-1. Log into the application and observe the dashboard layout.
-2. Verify the TopAppBar shows the current worker's name, sync status, and connectivity status.
-3. Verify the BottomNavigation displays tabs for Home, Time, Map, Sync, and Settings.
-4. If logged in as an Admin/Manager, verify the Admin tab appears.
-5. Tap Logout in the TopAppBar and verify the application returns to the authentication screen.
-6. Verify global feedback triggers (e.g. error banners) function without overlapping or breaking layout.

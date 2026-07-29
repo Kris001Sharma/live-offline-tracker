@@ -3,11 +3,9 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AppLifecycleState } from './lifecycle';
 import { useAppContext } from './composition-root';
 import { ErrorBoundary } from '../components/error/ErrorBoundary';
-import { WorkerLayout } from '../components/layout/WorkerLayout';
+import { Scaffold } from '../components/layout/Scaffold';
 import { SplashScreen } from '../features/identity/components/SplashScreen';
 import { AuthScreen } from '../features/identity/components/AuthScreen';
-import { GlobalFeedbackProvider } from '../components/feedback/GlobalFeedbackProvider';
-import { AuthenticatedOnly, SupervisorOnly } from '../features/permissions/components/Guards';
 
 // Placeholder Pages
 const WorkerDashboard = () => <div className="p-4">Worker Dashboard</div>;
@@ -27,7 +25,7 @@ export function AppRouter() {
   return (
     <BrowserRouter>
       <ErrorBoundary>
-        <GlobalFeedbackProvider>
+        <Scaffold>
           <Routes>
             {!isAuthenticated ? (
               <>
@@ -35,24 +33,18 @@ export function AppRouter() {
                 <Route path="*" element={<Navigate to="/auth" replace />} />
               </>
             ) : (
-              <Route
-                element={
-                  <AuthenticatedOnly>
-                    <WorkerLayout />
-                  </AuthenticatedOnly>
-                }
-              >
+              <>
                 <Route path="/dashboard" element={<WorkerDashboard />} />
                 <Route path="/attendance" element={<Attendance />} />
                 <Route path="/tracking" element={<Tracking />} />
                 <Route path="/sync" element={<Synchronization />} />
                 <Route path="/settings" element={<Settings />} />
-                <Route path="/supervisor" element={<SupervisorOnly><Supervisor /></SupervisorOnly>} />
+                <Route path="/supervisor" element={<Supervisor />} />
                 <Route path="*" element={<Navigate to="/dashboard" replace />} />
-              </Route>
+              </>
             )}
           </Routes>
-        </GlobalFeedbackProvider>
+        </Scaffold>
       </ErrorBoundary>
     </BrowserRouter>
   );

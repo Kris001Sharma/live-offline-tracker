@@ -57,5 +57,3 @@ The validation framework now reports structured statistics across:
 - **Failure Path Checks**: Validates robust error capturing and custom domain Exceptions.
 - **Immutability Checks**: Asserts `Object.freeze` adherence.
 - **Architecture Checks**: Asserts module boundary isolation (e.g. no SQL inside engines).
-
-- **UI Suite**: Validates structural UI components, routing integrity, and architectural constraints such as single-overlay ownership and permission guard integration.
