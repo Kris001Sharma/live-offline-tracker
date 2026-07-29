@@ -10,6 +10,8 @@ interface AppContextValue {
   error: Error | null;
   retry: () => void;
   refreshAuth: () => void;
+  completeAuthentication: () => Promise<void>;
+  logout: () => Promise<void>;
   isAuthenticated: boolean;
 }
 
@@ -89,10 +91,39 @@ export function AppCompositionRoot({ children }: { children: ReactNode }) {
     setAuthTrigger(prev => prev + 1);
   };
 
+  const completeAuthentication = async () => {
+    setLifecycleState(AppLifecycleState.LOADING_PROFILE);
+    const authUser = AuthenticationEngine.currentUser();
+    if (authUser) {
+       UserContextEngine.setCurrentWorker(mapToWorker(authUser));
+    }
+    const userContextStatus = UserContextEngine.status();
+    
+    if (userContextStatus.currentWorkerId) {
+      const profileResult = await WorkerProfileEngine.load();
+      if (!profileResult.success) {
+         console.warn('Failed to load profile:', profileResult.error);
+      }
+    }
+    setLifecycleState(AppLifecycleState.READY);
+    setAuthTrigger(prev => prev + 1);
+  };
+
+  const logout = async () => {
+    try {
+      await AuthenticationEngine.logout();
+      UserContextEngine.clear();
+      WorkerProfileEngine.clear();
+      setAuthTrigger(prev => prev + 1);
+    } catch (err) {
+      console.error('Logout error', err);
+    }
+  };
+
   const isAuth = UserContextEngine.isAuthenticated() && AuthenticationEngine.status().state === 'AUTHENTICATED';
 
   return (
-    <AppContext.Provider value={{ lifecycleState, error, retry, refreshAuth, isAuthenticated: isAuth }}>
+    <AppContext.Provider value={{ lifecycleState, error, retry, refreshAuth, completeAuthentication, logout, isAuthenticated: isAuth }}>
       {children}
     </AppContext.Provider>
   );

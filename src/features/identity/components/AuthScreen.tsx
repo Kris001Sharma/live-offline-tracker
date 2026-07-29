@@ -1,15 +1,13 @@
 import React, { useState } from 'react';
 import { AuthenticationEngine } from '../../../../modules/authentication';
-import { UserContextEngine } from '../../../../modules/user-context';
-import { WorkerProfileEngine } from '../../../../modules/worker-profile';
-import { useAppContext, mapToWorker } from '../../../app/composition-root';
+import { useAppContext } from '../../../app/composition-root';
 import { ErrorDisplay } from '../../../components/status/ErrorDisplay';
 import { LoadingOverlay } from '../../../components/status/LoadingOverlay';
 import { PageContainer } from '../../../components/layout/PageContainer';
 import { useNavigate } from 'react-router-dom';
 
 export function AuthScreen() {
-  const { refreshAuth } = useAppContext();
+  const { completeAuthentication } = useAppContext();
   const navigate = useNavigate();
 
   const [email, setEmail] = useState('');
@@ -32,9 +30,7 @@ export function AuthScreen() {
       if (authResult.success) {
         const authUser = AuthenticationEngine.currentUser();
         if (authUser) {
-           UserContextEngine.setCurrentWorker(mapToWorker(authUser));
-           await WorkerProfileEngine.load();
-           refreshAuth();
+           await completeAuthentication();
            navigate('/dashboard', { replace: true });
         } else {
            setErrorMsg('Authentication succeeded but no user returned.');
